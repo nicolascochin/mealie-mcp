@@ -16,6 +16,9 @@ export interface MealieClientOptions {
 
 type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
+/** Query string values; `undefined` entries are left out. */
+export type Query = Record<string, string | number | boolean | undefined>;
+
 /** Calls the Mealie API on behalf of one user. Built per MCP request, never shared between users. */
 export class MealieClient {
   private readonly timeoutMs: number;
@@ -28,16 +31,20 @@ export class MealieClient {
     return this.get<MealieUser>(api`/api/users/self`);
   }
 
-  get<T>(path: ApiPath): Promise<T> {
-    return this.request<T>('GET', path);
+  get<T>(path: ApiPath, query?: Query): Promise<T> {
+    return this.request<T>('GET', path, undefined, query);
+  }
+
+  post<T>(path: ApiPath, body: unknown): Promise<T> {
+    return this.request<T>('POST', path, body);
   }
 
   /** Sends one request. A GET is retried once after a network error or a 5xx; nothing else is retried. */
-  async request<T>(method: Method, path: ApiPath, body?: unknown): Promise<T> {
+  async request<T>(method: Method, path: ApiPath, body?: unknown, query?: Query): Promise<T> {
     const attempts = method === 'GET' ? 2 : 1;
     for (let attempt = 1; ; attempt++) {
       try {
-        return await this.send<T>(method, path, body);
+        return await this.send<T>(method, path, body, query);
       } catch (err) {
         if (attempt >= attempts || !isRetryable(err)) throw err;
         await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
@@ -45,13 +52,13 @@ export class MealieClient {
     }
   }
 
-  private async send<T>(method: Method, path: ApiPath, body: unknown): Promise<T> {
+  private async send<T>(method: Method, path: ApiPath, body: unknown, query: Query | undefined): Promise<T> {
     const headers: Record<string, string> = { authorization: `Bearer ${this.options.token}`, accept: 'application/json' };
     if (body !== undefined) headers['content-type'] = 'application/json';
 
     let res: Response;
     try {
-      res = await fetch(this.options.baseUrl + path, {
+      res = await fetch(this.options.baseUrl + path + queryString(query), {
         method,
         headers,
         body: body === undefined ? undefined : JSON.stringify(body),
@@ -75,6 +82,16 @@ export class MealieClient {
       throw new MealieError('invalid_response', `${method} ${path} did not return JSON`);
     }
   }
+}
+
+function queryString(query: Query | undefined): string {
+  if (!query) return '';
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (value !== undefined) params.set(key, String(value));
+  }
+  const text = params.toString();
+  return text ? `?${text}` : '';
 }
 
 function isRetryable(err: unknown): boolean {

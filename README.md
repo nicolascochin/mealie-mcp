@@ -4,7 +4,17 @@ Serveur MCP pour piloter [Mealie](https://github.com/mealie-recipes/mealie) depu
 
 Chaque personne se connecte avec son propre token API Mealie, passé dans l'en-tête `Authorization` du connecteur. Le serveur ne stocke rien.
 
-> En construction : un seul outil pour l'instant, `mealie_whoami`.
+> En construction.
+
+## Outils
+
+| Outil | Rôle |
+| ----- | ---- |
+| `mealie_whoami` | Utilisateur connecté : nom, foyer, groupe |
+| `mealie_search_foods` | Retrouve un aliment par nom, pluriel ou alias (sans casse ni accents), ou propose des candidats |
+| `mealie_search_units` | Idem pour les unités, abréviations comprises |
+| `mealie_list_tags`, `mealie_list_categories` | Tags et catégories de recettes |
+| `mealie_create_food`, `mealie_create_unit` | Ajoute un aliment ou une unité ; refuse un nom déjà utilisé |
 
 ## Lancer en local
 
