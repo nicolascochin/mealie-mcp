@@ -11,7 +11,7 @@ function main(config: Config): void {
   const app = createApp({ config, logger });
 
   app.server.listen(config.port, () => {
-    logger.info('mealie-mcp listening', { port: config.port, mealieUrl: config.mealieUrl, version: VERSION });
+    logger.info('mealie-mcp listening', { port: config.port, mealieUrl: config.mealieUrl, trustProxy: config.trustProxy, version: VERSION });
   });
 
   const shutdown = (signal: string) => {

@@ -12,7 +12,7 @@ export interface TestApp {
 
 /** Starts the real HTTP server on a random local port. */
 export async function startTestApp(overrides: Partial<Config> = {}): Promise<TestApp> {
-  const config: Config = { mealieUrl: TEST_MEALIE_URL, port: 0, logLevel: 'silent', ...overrides };
+  const config: Config = { mealieUrl: TEST_MEALIE_URL, port: 0, logLevel: 'silent', trustProxy: 0, ...overrides };
   const app = createApp({ config, logger: createLogger('silent') });
   await new Promise<void>((resolve) => app.server.listen(0, '127.0.0.1', resolve));
   const { port } = app.server.address() as AddressInfo;

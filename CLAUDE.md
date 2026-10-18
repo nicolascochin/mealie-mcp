@@ -29,8 +29,12 @@ npm run build                                  # compile dans dist/
 - `src/config.ts` : lecture et validation des variables d'environnement
 - `src/log.ts` : logs JSON, une ligne par évènement
 - `src/http/app.ts` : serveur HTTP, routes `/mcp` et `/healthz`
-- `src/mcp/server.ts` : fabrique du serveur MCP et instructions envoyées au modèle
-- `tests/` : tests vitest ; `tests/helpers/app.ts` démarre le vrai serveur sur un port aléatoire
+- `src/http/auth.ts` : contrôle du token avant chaque requête `/mcp` (401, 429, 503) ; `src/http/client-ip.ts` : IP réelle derrière `TRUST_PROXY` proxies
+- `src/auth/` : lecture de l'en-tête Bearer, validation du token par `GET /api/users/self` avec cache (hash SHA-256), limite des échecs par IP
+- `src/mealie/client.ts` : client Mealie d'un utilisateur (timeout, une relance sur les GET après une erreur réseau ou un 5xx) ; `src/mealie/errors.ts` : erreurs et messages pour le modèle ; `src/mealie/path.ts` : `` api`/api/recipes/${slug}` `` encode chaque segment et refuse `.`, `..` et `/`
+- `src/mcp/server.ts` : fabrique du serveur MCP (une par requête, avec le client Mealie de l'utilisateur) et instructions envoyées au modèle
+- `src/mcp/tools/` : un fichier par outil ; `result.ts` (`runTool`) renvoie le JSON compact ou un message d'erreur actionnable
+- `tests/` : tests vitest ; `tests/helpers/app.ts` démarre le vrai serveur sur un port aléatoire ; `tests/helpers/mealie.ts` simule Mealie avec msw (`mealie.use(...)` pour surcharger une route dans un test)
 
 ## Conventions
 
@@ -48,6 +52,7 @@ npm run build                                  # compile dans dist/
 
 - Une branche et une PR par ticket Kaneo : `ccmm-<n>-<sujet>`.
 - Dès que la CI est verte, la PR est fusionnée en squash merge, sans attendre de validation. Ensuite on passe le ticket en « Done » dans Kaneo.
+- Une fois la PR fusionnée, on enchaîne directement sur le ticket suivant (ordre des numéros, en respectant les relations « bloque »).
 - La CI (`.github/workflows/ci.yml`) lance typecheck, tests et build sur chaque PR.
 - La CI installe avec `npm ci` : `package-lock.json` est committé et doit être à jour. Après une modification de `package.json`, lancer `npm install` et committer le lockfile dans la même PR.
 - Environnement cloud : le hook SessionStart (`.claude/settings.json`, `.claude/hooks/session-start.sh`) installe dans `/opt` la version de Node lue dans `.node-version`, l'ajoute au `PATH`, puis lance `npm ci` (ou `npm install` sans lockfile). Il saute l'installation si `package.json`, `package-lock.json` et la version de Node n'ont pas changé. Hors du cloud, il ne fait rien.
