@@ -80,13 +80,15 @@ jobs:
       - id: meta
         uses: docker/metadata-action@v6
         with:
-          # Labels describe the checked-out commit, not the latest one on main.
-          context: git
           images: ghcr.io/${{ github.repository }}
           tags: |
             type=raw,value=${{ needs.version.outputs.version }}
             type=raw,value=${{ needs.version.outputs.minor }}
             type=raw,value=latest
+          # The image is built from the commit the ci workflow tested, which may not be the latest
+          # one on main that the workflow context points to.
+          labels: |
+            org.opencontainers.image.revision=${{ github.event.workflow_run.head_sha }}
 
       - uses: docker/build-push-action@v7
         with:
