@@ -4,6 +4,8 @@ MCP server to drive [Mealie](https://github.com/mealie-recipes/mealie) from Clau
 
 Each person connects with their own Mealie API token, passed in the connector's `Authorization` header. The server stores nothing.
 
+Targets Mealie v3. Tested against **Mealie v3.29.0**: the integration tests move to each new Mealie release as soon as it passes them.
+
 > Work in progress.
 
 ## Tools
