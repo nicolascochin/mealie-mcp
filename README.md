@@ -54,7 +54,8 @@ Pour tester avec le MCP Inspector, ajouter l'en-tête `Authorization` dans sa co
 ## Développement
 
 ```sh
-npm test            # tests unitaires et de bout en bout
+npm test            # tests unitaires et de bout en bout (Mealie simulé)
+npm run test:live   # tests d'intégration contre un Mealie jetable (Docker requis)
 npm run typecheck
 npm run build       # compile dans dist/
 npm start           # lance la version compilée
