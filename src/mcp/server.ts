@@ -2,6 +2,7 @@ import { McpServer } from '@modelcontextprotocol/server';
 import type { Logger } from '../log.js';
 import type { MealieClient } from '../mealie/client.js';
 import { VERSION } from '../version.js';
+import { registerCatalogTools } from './tools/catalog.js';
 import { registerWhoami } from './tools/whoami.js';
 
 export const SERVER_NAME = 'mealie-mcp';
@@ -26,5 +27,6 @@ export interface ToolDeps {
 export function createMcpServer(deps: ToolDeps): McpServer {
   const server = new McpServer({ name: SERVER_NAME, title: 'Mealie', version: VERSION }, { instructions: SERVER_INSTRUCTIONS });
   registerWhoami(server, deps);
+  registerCatalogTools(server, deps);
   return server;
 }
