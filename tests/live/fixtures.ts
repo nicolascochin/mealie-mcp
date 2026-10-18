@@ -69,6 +69,11 @@ export interface StepFixture {
 
 export interface RecipeFixture {
   name: string;
+  tags?: string[];
+  categories?: string[];
+  prepTime?: string;
+  totalTime?: string;
+  notes?: Array<{ title: string; text: string }>;
   ingredients: IngredientFixture[];
   steps: StepFixture[];
 }
@@ -76,6 +81,9 @@ export interface RecipeFixture {
 export const RECIPES: RecipeFixture[] = [
   {
     name: "Soupe à l'oignon",
+    tags: ['Hiver'],
+    categories: ['Plat'],
+    totalTime: '45 min',
     ingredients: [
       { quantity: 4, food: 'oignon', note: 'émincés' },
       { quantity: 2, unit: 'cuillère à soupe', food: 'beurre' },
@@ -88,6 +96,11 @@ export const RECIPES: RecipeFixture[] = [
   },
   {
     name: 'Quiche lorraine',
+    tags: ['Classique'],
+    categories: ['Plat'],
+    prepTime: '20 min',
+    totalTime: '1 h',
+    notes: [{ title: 'Astuce', text: 'Précuire la pâte 10 minutes.' }],
     ingredients: [
       { section: 'Pâte', quantity: 250, unit: 'gramme', food: 'farine' },
       { quantity: 125, unit: 'gramme', food: 'beurre', note: 'mou' },
@@ -104,6 +117,9 @@ export const RECIPES: RecipeFixture[] = [
   },
   {
     name: 'Crêpes',
+    tags: ['Rapide', 'Végétarien'],
+    categories: ['Dessert'],
+    totalTime: '30 min',
     ingredients: [
       { quantity: 250, unit: 'gramme', food: 'farine' },
       { quantity: 4, food: 'œuf' },

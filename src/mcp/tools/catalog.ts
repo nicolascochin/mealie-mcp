@@ -4,6 +4,7 @@ import {
   foodVariants,
   foodView,
   listFoods,
+  listOrganizers,
   listUnits,
   resolutionView,
   resolveFood,
@@ -14,7 +15,7 @@ import {
 import { normalizeName } from '../../catalog/normalize.js';
 import type { NameVariant } from '../../catalog/resolve.js';
 import { api } from '../../mealie/path.js';
-import type { MealieFood, MealieOrganizer, MealieUnit, Paginated } from '../../mealie/types.js';
+import type { MealieFood, MealieUnit } from '../../mealie/types.js';
 import type { ToolDeps } from '../server.js';
 import { runTool, ToolError } from './result.js';
 
@@ -66,8 +67,8 @@ export function registerCatalogTools(server: McpServer, { mealie, logger }: Tool
     { title: 'List tags', description: 'List the recipe tags defined in Mealie.', annotations: READ_ONLY },
     () =>
       runTool(logger, 'mealie_list_tags', async () => {
-        const { items } = await mealie.get<Paginated<MealieOrganizer>>(api`/api/organizers/tags`, { page: 1, perPage: -1 });
-        return { tags: items.map((tag) => tag.name).sort((a, b) => a.localeCompare(b)) };
+        const tags = await listOrganizers(mealie, 'tags');
+        return { tags: tags.map((tag) => tag.name).sort((a, b) => a.localeCompare(b)) };
       })
   );
 
@@ -76,8 +77,8 @@ export function registerCatalogTools(server: McpServer, { mealie, logger }: Tool
     { title: 'List categories', description: 'List the recipe categories defined in Mealie.', annotations: READ_ONLY },
     () =>
       runTool(logger, 'mealie_list_categories', async () => {
-        const { items } = await mealie.get<Paginated<MealieOrganizer>>(api`/api/organizers/categories`, { page: 1, perPage: -1 });
-        return { categories: items.map((category) => category.name).sort((a, b) => a.localeCompare(b)) };
+        const categories = await listOrganizers(mealie, 'categories');
+        return { categories: categories.map((category) => category.name).sort((a, b) => a.localeCompare(b)) };
       })
   );
 

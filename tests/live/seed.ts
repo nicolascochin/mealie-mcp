@@ -91,9 +91,18 @@ export async function seed(mealieUrl: string): Promise<LiveSeed> {
     foods.set(food.name, created);
   }
 
+  const organizers = { tags: new Map<string, Json>(), categories: new Map<string, Json>() };
+  for (const kind of ['tags', 'categories'] as const) {
+    const wanted = new Set(RECIPES.flatMap((recipe) => recipe[kind] ?? []));
+    for (const name of wanted) {
+      const { id, slug } = await call<Json>(mealieUrl, 'POST', `/api/organizers/${kind}`, token, { name });
+      organizers[kind].set(name, { id, name, slug });
+    }
+  }
+
   const recipes: Record<string, string> = {};
   for (const fixture of RECIPES) {
-    recipes[fixture.name] = await createRecipe(mealieUrl, token, fixture, units, foods);
+    recipes[fixture.name] = await createRecipe(mealieUrl, token, fixture, units, foods, organizers);
   }
   return { mealieUrl, token, username: LIVE_USER.username, recipes };
 }
@@ -103,7 +112,8 @@ async function createRecipe(
   token: string,
   fixture: RecipeFixture,
   units: Map<string, Json>,
-  foods: Map<string, Json>
+  foods: Map<string, Json>,
+  organizers: { tags: Map<string, Json>; categories: Map<string, Json> }
 ): Promise<string> {
   const slug = await call<string>(mealieUrl, 'POST', '/api/recipes', token, { name: fixture.name });
   const recipe = await call<Json>(mealieUrl, 'GET', `/api/recipes/${encodeURIComponent(slug)}`, token);
@@ -139,6 +149,11 @@ async function createRecipe(
     ...recipe,
     recipeIngredient: ingredients,
     recipeInstructions: steps,
+    tags: (fixture.tags ?? []).map((name) => organizers.tags.get(name)),
+    recipeCategory: (fixture.categories ?? []).map((name) => organizers.categories.get(name)),
+    prepTime: fixture.prepTime ?? null,
+    totalTime: fixture.totalTime ?? null,
+    notes: fixture.notes ?? [],
     settings: { ...(recipe.settings as Json | undefined), disableAmount: false },
   });
   return slug;

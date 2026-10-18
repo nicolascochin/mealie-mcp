@@ -3,6 +3,7 @@ import type { Logger } from '../log.js';
 import type { MealieClient } from '../mealie/client.js';
 import { VERSION } from '../version.js';
 import { registerCatalogTools } from './tools/catalog.js';
+import { registerRecipeTools } from './tools/recipes.js';
 import { registerWhoami } from './tools/whoami.js';
 
 export const SERVER_NAME = 'mealie-mcp';
@@ -28,5 +29,6 @@ export function createMcpServer(deps: ToolDeps): McpServer {
   const server = new McpServer({ name: SERVER_NAME, title: 'Mealie', version: VERSION }, { instructions: SERVER_INSTRUCTIONS });
   registerWhoami(server, deps);
   registerCatalogTools(server, deps);
+  registerRecipeTools(server, deps);
   return server;
 }
