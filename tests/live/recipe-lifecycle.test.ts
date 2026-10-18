@@ -86,7 +86,9 @@ describe('recipe lifecycle against a real Mealie', () => {
       prepTime: '15 min',
       notes: [{ title: 'Repos', text: 'Laisser reposer une heure.' }],
     });
-    expect(result).toMatchObject({ tags: ['Végétarien', 'Rapide'], prepTime: '15 min', notes: [{ title: 'Repos', text: 'Laisser reposer une heure.' }] });
+    expect(result).toMatchObject({ prepTime: '15 min', notes: [{ title: 'Repos', text: 'Laisser reposer une heure.' }] });
+    // Tags are a set: Mealie returns them in its own order.
+    expect([...(result.tags as string[])].sort()).toEqual(['Rapide', 'Végétarien']);
     const after = await readRawRecipe(slug);
     expect(after.recipeIngredient).toEqual(before.recipeIngredient);
     expect(stepsWithoutIds(after)).toEqual(stepsWithoutIds(before));
@@ -96,7 +98,9 @@ describe('recipe lifecycle against a real Mealie', () => {
 
   it('marks a recipe as made', async () => {
     await callJson(client, 'mealie_mark_recipe_made', { slug, date: '2026-10-12' });
-    expect(String((await readRawRecipe(slug)).lastMade)).toContain('2026-10-12');
+    // Since Mealie v2, "last made" is stored per household, not on the recipe.
+    const household = await call<Raw>(seed.mealieUrl, 'GET', `/api/households/self/recipes/${encodeURIComponent(slug)}`, seed.token);
+    expect(String(household.lastMade), JSON.stringify(household)).toContain('2026-10-12');
   });
 
   it('duplicates a recipe with its structured ingredients', async () => {
