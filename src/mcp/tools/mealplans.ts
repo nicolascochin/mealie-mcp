@@ -1,6 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/server';
 import * as z from 'zod';
 import { planRange } from '../../mealplans/dates.js';
+import { ruleNames, ruleView, type MealieMealPlanRule } from '../../mealplans/rules.js';
 import { entriesView, entryView, MEAL_TYPES } from '../../mealplans/view.js';
 import type { MealieClient } from '../../mealie/client.js';
 import { MealieError } from '../../mealie/errors.js';
@@ -86,6 +87,47 @@ export function registerMealPlanTools(server: McpServer, { mealie, logger }: Too
           ...(slug ? { recipeId: await recipeId(mealie, slug) } : {}),
         });
         return entryView(created);
+      })
+  );
+
+  server.registerTool(
+    'mealie_plan_random_meal',
+    {
+      title: 'Plan a random meal',
+      description:
+        "Let Mealie pick a recipe at random for a date and a meal, following the household's meal plan rules (see mealie_list_mealplan_rules), and add it to the plan.",
+      inputSchema: z.object({ date: day('Day'), meal }),
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+    },
+    ({ date, meal: entryType }) =>
+      runTool(logger, 'mealie_plan_random_meal', async () => {
+        try {
+          return entryView(await mealie.post<MealieMealPlanEntry>(api`/api/households/mealplans/random`, { date, entryType }));
+        } catch (err) {
+          // Mealie answers 404 when no recipe passes the rules.
+          if (err instanceof MealieError && err.status === 404) {
+            throw new ToolError(
+              `No recipe matches the meal plan rules for ${entryType} on ${date}. See mealie_list_mealplan_rules, or plan a recipe with mealie_add_mealplan_entry.`
+            );
+          }
+          throw err;
+        }
+      })
+  );
+
+  server.registerTool(
+    'mealie_list_mealplan_rules',
+    {
+      title: 'List meal plan rules',
+      description:
+        'List the meal plan rules of the household: for which day and meal they apply, and which recipes they allow (tags, categories, tools, foods…). Random meals follow them.',
+      annotations: READ_ONLY,
+    },
+    () =>
+      runTool(logger, 'mealie_list_mealplan_rules', async () => {
+        const rules = (await mealie.get<Paginated<MealieMealPlanRule>>(api`/api/households/mealplans/rules`, { page: 1, perPage: -1 })).items;
+        const names = await ruleNames(mealie, rules);
+        return { rules: rules.map((rule) => ruleView(rule, names)) };
       })
   );
 

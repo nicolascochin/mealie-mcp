@@ -88,11 +88,13 @@ afterEach(async () => {
 describe('meal plan tools', () => {
   it('declare their annotations', async () => {
     const { tools } = await client.listTools();
-    const hints = Object.fromEntries(tools.filter((t) => /mealplan|todays_meals/.test(t.name)).map((t) => [t.name, [t.annotations?.readOnlyHint, t.annotations?.destructiveHint]]));
+    const hints = Object.fromEntries(tools.filter((t) => /mealplan|todays_meals|random_meal/.test(t.name)).map((t) => [t.name, [t.annotations?.readOnlyHint, t.annotations?.destructiveHint]]));
     expect(hints).toEqual({
       mealie_list_mealplans: [true, false],
       mealie_get_todays_meals: [true, false],
       mealie_add_mealplan_entry: [false, false],
+      mealie_plan_random_meal: [false, false],
+      mealie_list_mealplan_rules: [true, false],
       mealie_update_mealplan_entry: [false, false],
       mealie_delete_mealplan_entry: [false, true],
     });
@@ -164,5 +166,91 @@ describe('meal plan tools', () => {
 
   it('deletes an entry', async () => {
     expect(await callJson(client, 'mealie_delete_mealplan_entry', { id: 7 })).toMatchObject({ deleted: { id: 7, date: '2026-10-15' } });
+  });
+});
+
+describe('random meals and meal plan rules', () => {
+  const part = (attributeName: string, relationalOperator: string, value: string | string[], extra: Record<string, string> = {}) => ({
+    attributeName,
+    relationalOperator,
+    value,
+    ...extra,
+  });
+  const page = <T>(items: T[]) => ({ page: 1, per_page: -1, total: items.length, total_pages: 1, items });
+
+  it('plans a random meal chosen by Mealie', async () => {
+    mealie.use(
+      http.post(mealieUrl('/api/households/mealplans/random'), async ({ request }) => {
+        await record(request);
+        return HttpResponse.json(entry(11, '2026-10-20', 'dinner', QUICHE_REF));
+      })
+    );
+    expect(await callJson(client, 'mealie_plan_random_meal', { date: '2026-10-20', meal: 'dinner' })).toEqual({
+      id: 11,
+      date: '2026-10-20',
+      meal: 'dinner',
+      recipe: { name: 'Quiche lorraine', slug: 'quiche-lorraine' },
+    });
+    expect(calls).toEqual([{ method: 'POST', path: '/api/households/mealplans/random', body: { date: '2026-10-20', entryType: 'dinner' } }]);
+  });
+
+  it('explains when no recipe matches the rules', async () => {
+    mealie.use(
+      http.post(mealieUrl('/api/households/mealplans/random'), () =>
+        HttpResponse.json({ detail: { message: 'No recipes match your rules' } }, { status: 404 })
+      )
+    );
+    const result = await client.callTool({ name: 'mealie_plan_random_meal', arguments: { date: '2026-10-20', meal: 'lunch' } });
+    expect(toolText(result)).toBe(
+      'No recipe matches the meal plan rules for lunch on 2026-10-20. See mealie_list_mealplan_rules, or plan a recipe with mealie_add_mealplan_entry.'
+    );
+  });
+
+  it('lists the rules with names instead of ids, loading only the catalogs they use', async () => {
+    const loaded: string[] = [];
+    const catalog = (path: string, items: unknown[]) =>
+      http.get(mealieUrl(path), () => {
+        loaded.push(path);
+        return HttpResponse.json(page(items));
+      });
+    mealie.use(
+      http.get(mealieUrl('/api/households/mealplans/rules'), () =>
+        HttpResponse.json(
+          page([
+            {
+              id: 'rule1',
+              day: 'monday',
+              entryType: 'dinner',
+              queryFilterString: 'tags.id IN ["t1","t9"] AND recipe_category.id CONTAINS ALL ["c1"]',
+              queryFilter: {
+                parts: [part('tags.id', 'IN', ['t1', 't9']), part('recipe_category.id', 'CONTAINS ALL', ['c1'], { logicalOperator: 'AND' })],
+              },
+            },
+            {
+              id: 'rule2',
+              day: 'unset',
+              entryType: 'unset',
+              queryFilterString: '(rating >= "4" OR household_id = "h1")',
+              queryFilter: {
+                parts: [part('rating', '>=', '4', { leftParenthesis: '(' }), part('household_id', '=', 'h1', { logicalOperator: 'OR', rightParenthesis: ')' })],
+              },
+            },
+            { id: 'rule3', day: 'friday', entryType: 'lunch', queryFilterString: '', queryFilter: { parts: [] } },
+          ])
+        )
+      ),
+      catalog('/api/organizers/tags', [{ id: 't1', name: 'Rapide', slug: 'rapide' }]),
+      catalog('/api/organizers/categories', [{ id: 'c1', name: 'Plat', slug: 'plat' }]),
+      catalog('/api/groups/households', [{ id: 'h1', name: 'Famille', slug: 'famille' }]),
+      catalog('/api/foods', [])
+    );
+    expect(await callJson(client, 'mealie_list_mealplan_rules')).toEqual({
+      rules: [
+        { day: 'monday', meal: 'dinner', recipes: 'tags IN ["Rapide", "unknown"] AND categories CONTAINS ALL ["Plat"]' },
+        { day: 'any', meal: 'any', recipes: '(rating >= "4" OR household = "Famille")' },
+        { day: 'friday', meal: 'lunch', recipes: 'any recipe' },
+      ],
+    });
+    expect(loaded.sort()).toEqual(['/api/groups/households', '/api/organizers/categories', '/api/organizers/tags']);
   });
 });
