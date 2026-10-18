@@ -31,12 +31,26 @@ const stepsOf = (raw: Raw) => raw.recipeInstructions as Array<Raw & { ingredient
 /** Keys Mealie may change on any write. */
 const TIMESTAMPS = new Set(['dateUpdated', 'updatedAt', 'updateAt', 'update_at']);
 
+/**
+ * Steps without their `id`: Mealie gives every step a new id on each write, even one that only
+ * sends the ingredients (as its own interface does). Text and ingredient links must stay.
+ */
+const stepsWithoutIds = (raw: Raw) => stepsOf(raw).map(({ id: _id, ...step }) => step);
+
+/** The fields a write of the ingredients must not change, all compared at once. */
+function stableFields(raw: Raw, alsoChanged: string[]) {
+  const fields: Raw = { recipeInstructions: stepsWithoutIds(raw) };
+  for (const [key, value] of Object.entries(raw)) {
+    if (key === 'recipeIngredient' || key === 'recipeInstructions' || TIMESTAMPS.has(key) || alsoChanged.includes(key)) continue;
+    fields[key] = value;
+  }
+  for (const key of alsoChanged) delete fields[key];
+  return fields;
+}
+
 /** Every top-level field except the ingredient list and timestamps is unchanged. */
 function expectOnlyIngredientsChanged(before: Raw, after: Raw, alsoChanged: string[] = []) {
-  for (const key of Object.keys(before)) {
-    if (key === 'recipeIngredient' || TIMESTAMPS.has(key) || alsoChanged.includes(key)) continue;
-    expect(after[key], `field ${key}`).toEqual(before[key]);
-  }
+  expect(stableFields(after, alsoChanged)).toEqual(stableFields(before, alsoChanged));
 }
 
 let app: TestApp;
@@ -109,7 +123,7 @@ describe('mealie_edit_ingredients against a real Mealie', () => {
     const ids = ingredientsOf(after).map((i) => i.referenceId);
     const prev = ingredientsOf(before).map((i) => i.referenceId);
     expect(ids).toEqual([prev[5], ...prev.slice(0, 5)]);
-    expect(stepsOf(after)).toEqual(stepsOf(before));
+    expect(stepsWithoutIds(after)).toEqual(stepsWithoutIds(before));
   });
 
   it('refuses to delete a linked ingredient, then unlinks it on request', async () => {
@@ -121,11 +135,10 @@ describe('mealie_edit_ingredients against a real Mealie', () => {
     await edit({ operations: [{ op: 'delete', n: 2 }], unlinkSteps: true });
     const after = await readRawRecipe(slug);
     expect(ingredientsOf(after).map((i) => i.referenceId)).not.toContain(removed);
-    const [step1, step2] = stepsOf(after);
-    const [before1, before2] = stepsOf(before);
-    expect(step1!.ingredientReferences).toEqual(before1!.ingredientReferences.filter((r) => r.referenceId !== removed));
+    const [step1, step2] = stepsWithoutIds(after);
+    const [before1, before2] = stepsWithoutIds(before);
+    expect(step1).toEqual({ ...before1, ingredientReferences: stepsOf(before)[0]!.ingredientReferences.filter((r) => r.referenceId !== removed) });
     expect(step2).toEqual(before2);
-    expect(step1!.text).toBe(before1!.text);
     expectOnlyIngredientsChanged(before, after, ['recipeInstructions']);
   });
 
