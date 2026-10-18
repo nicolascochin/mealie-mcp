@@ -10,6 +10,9 @@ describe('release workflow', () => {
     expect(workflow).toMatch(/workflow_run:\n\s+workflows: \[ci\]\n\s+types: \[completed\]\n\s+branches: \[main\]/);
     expect(workflow).toContain("github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'");
     expect(workflow).toContain('ref: ${{ github.event.workflow_run.head_sha }}');
+    expect(workflow).toContain('org.opencontainers.image.revision=${{ github.event.workflow_run.head_sha }}');
+    // metadata-action's git context fails on the detached HEAD of that checkout.
+    expect(workflow).not.toContain('context: git');
   });
 
   it('passes event values to the shell through environment variables only', () => {
