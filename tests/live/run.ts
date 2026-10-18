@@ -18,7 +18,7 @@ function run(command: string, args: string[], env: NodeJS.ProcessEnv = process.e
 }
 
 async function main(): Promise<number> {
-  if ((await run('docker', [...compose, 'up', '-d'], { ...process.env, MEALIE_TEST_PORT: port })) !== 0) {
+  if ((await run('docker', [...compose, 'up', '-d', '--build'], { ...process.env, MEALIE_TEST_PORT: port })) !== 0) {
     throw new Error('docker compose up failed');
   }
   try {

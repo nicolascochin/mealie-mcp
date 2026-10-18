@@ -1,8 +1,8 @@
 # Disposable Mealie for the integration tests (npm run test:live). SQLite in a tmpfs:
-# nothing survives `docker compose down`.
+# nothing survives `docker compose down`. The Mealie version is pinned in tests/live/mealie/Dockerfile.
 services:
   mealie:
-    image: ghcr.io/mealie-recipes/mealie:v3.29.0
+    build: tests/live/mealie
     ports:
       - '127.0.0.1:${MEALIE_TEST_PORT:-9925}:9000'
     environment:

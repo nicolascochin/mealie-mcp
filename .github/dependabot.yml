@@ -1,0 +1,22 @@
+version: 2
+updates:
+  # Libraries: minor and patch updates grouped in one PR a week.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      npm-minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+
+  # Mealie version of the integration tests: each release gets its own PR, whose CI runs the whole
+  # live suite against it.
+  - package-ecosystem: docker
+    directory: /tests/live/mealie
+    schedule:
+      interval: daily

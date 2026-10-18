@@ -49,6 +49,14 @@ npx @modelcontextprotocol/inspector
 
 puis choisir le transport « Streamable HTTP » et l'URL `http://localhost:8080/mcp`.
 
+## Image Docker
+
+Chaque tag `vX.Y.Z` publie `ghcr.io/nicolascochin/mealie-mcp:X.Y.Z` (et `:X.Y`) pour amd64 et arm64. L'image tourne avec un utilisateur non-root et déclare un `HEALTHCHECK` sur `/healthz`.
+
+```sh
+docker run -d -p 8080:8080 -e MEALIE_URL=http://mealie:9000 ghcr.io/nicolascochin/mealie-mcp:0.1.0
+```
+
 ## Variables d'environnement
 
 | Variable     | Obligatoire | Défaut | Rôle                                                                        |
