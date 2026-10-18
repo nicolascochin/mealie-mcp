@@ -1,7 +1,8 @@
 import type { Client } from '@modelcontextprotocol/client';
 import { http, HttpResponse } from 'msw';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import type { MealieShoppingList } from '../src/mealie/types.js';
+import type { MealieShoppingItem, MealieShoppingList } from '../src/mealie/types.js';
+import { shoppingListView } from '../src/shopping/view.js';
 import { callJson, connectMcp, startTestApp, toolText, type TestApp } from './helpers/app.js';
 import { mealie, mealieUrl, VALID_TOKEN } from './helpers/mealie.js';
 import { quiche } from './helpers/recipes.js';
@@ -218,5 +219,37 @@ describe('shopping tools', () => {
     lists.length = 0;
     const result = await client.callTool({ name: 'mealie_get_shopping_list', arguments: {} });
     expect(toolText(result)).toBe('There is no shopping list yet: create one with mealie_create_shopping_list.');
+  });
+});
+
+describe('shopping list view', () => {
+  const CREMERIE = { id: 'lab-c', name: 'Crèmerie' };
+  const FRUITS = { id: 'lab-f', name: 'Fruits et légumes' };
+  const EPICERIE = { id: 'lab-e', name: 'Épicerie' };
+  const item = (id: string, note: string, label?: { id: string; name: string }): MealieShoppingItem => ({
+    id,
+    shoppingListId: 'l1',
+    note,
+    checked: false,
+    ...(label ? { label } : {}),
+  });
+
+  it('groups items by label in the order of the list, keeping their numbers', () => {
+    const view = shoppingListView({
+      id: 'l1',
+      name: 'Courses',
+      labelSettings: [
+        { labelId: 'lab-f', position: 0 },
+        { labelId: 'lab-c', position: 1 },
+      ],
+      listItems: [item('a', 'piles'), item('b', 'lait', CREMERIE), item('c', 'pommes', FRUITS), item('d', 'riz', EPICERIE), item('e', 'beurre', CREMERIE)],
+    });
+    expect(view.items).toEqual([
+      { n: 3, label: 'Fruits et légumes', note: 'pommes' },
+      { n: 2, label: 'Crèmerie', note: 'lait' },
+      { n: 5, label: 'Crèmerie', note: 'beurre' },
+      { n: 4, label: 'Épicerie', note: 'riz' },
+      { n: 1, note: 'piles' },
+    ]);
   });
 });

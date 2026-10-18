@@ -11,6 +11,7 @@ const page = <T>(items: T[]) => ({ page: 1, per_page: -1, total: items.length, t
 let foods: MealieFood[];
 let units: MealieUnit[];
 let posted: unknown[];
+let labels: Array<{ id: string; name: string }>;
 let written: Array<{ path: string; body: Record<string, unknown> }>;
 let app: TestApp;
 let client: Client;
@@ -19,7 +20,12 @@ beforeEach(async () => {
   foods = FOODS.map((f, i) => ({ id: `f${i}`, ...f, aliases: f.aliases.map((name) => ({ name })) }));
   units = UNITS.map((u, i) => ({ id: `u${i}`, ...u, aliases: u.aliases.map((name) => ({ name })) }));
   posted = [];
+  labels = [
+    { id: 'lab-c', name: 'Crèmerie' },
+    { id: 'lab-f', name: 'Fruits et légumes' },
+  ];
   written = [];
+  const withLabel = (body: Record<string, unknown>) => ({ ...body, label: labels.find((label) => label.id === body.labelId) ?? null });
   const record = async (request: Request) => {
     const body = (await request.json()) as Record<string, unknown>;
     written.push({ path: new URL(request.url).pathname, body });
@@ -28,7 +34,7 @@ beforeEach(async () => {
   const replace = <T extends { id: string }>(list: T[], id: string, body: Record<string, unknown>) => {
     const index = list.findIndex((item) => item.id === id);
     if (index < 0) return HttpResponse.json({ detail: 'not found' }, { status: 404 });
-    list[index] = { ...(body as unknown as T), id };
+    list[index] = { ...(withLabel(body) as unknown as T), id };
     return HttpResponse.json(list[index]);
   };
   mealie.use(
@@ -51,7 +57,13 @@ beforeEach(async () => {
     http.post(mealieUrl('/api/foods'), async ({ request }) => {
       const body = (await request.json()) as Omit<MealieFood, 'id'>;
       posted.push(body);
-      return HttpResponse.json({ id: 'new', ...body, description: '' }, { status: 201 });
+      return HttpResponse.json({ id: 'new', ...withLabel(body), description: '' }, { status: 201 });
+    }),
+    http.get(mealieUrl('/api/groups/labels'), () => HttpResponse.json(page(labels))),
+    http.post(mealieUrl('/api/groups/labels'), async ({ request }) => {
+      const { name } = (await record(request)) as { name: string };
+      labels.push({ id: `lab-${name}`, name });
+      return HttpResponse.json(labels.at(-1));
     }),
     http.post(mealieUrl('/api/units'), async ({ request }) => {
       const body = (await request.json()) as Omit<MealieUnit, 'id'>;
@@ -78,7 +90,7 @@ describe('catalog tools', () => {
   it('declare their annotations', async () => {
     const { tools } = await client.listTools();
     const byName = new Map(tools.map((t) => [t.name, t]));
-    for (const name of ['mealie_search_foods', 'mealie_search_units', 'mealie_list_tags', 'mealie_list_categories', 'mealie_list_tools']) {
+    for (const name of ['mealie_search_foods', 'mealie_search_units', 'mealie_list_tags', 'mealie_list_categories', 'mealie_list_tools', 'mealie_list_labels']) {
       expect(byName.get(name)?.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false, idempotentHint: true });
     }
     for (const name of ['mealie_create_food', 'mealie_create_unit']) {
@@ -240,5 +252,34 @@ describe('catalog editing tools', () => {
       addedAliases: ['grs'],
     });
     expect(written[0]).toEqual({ path: '/api/units/merge', body: { fromUnit: 'dup', toUnit: 'u0' } });
+  });
+});
+
+describe('labels', () => {
+  it('mealie_list_labels lists the labels by name', async () => {
+    expect(await callJson(client, 'mealie_list_labels')).toEqual({ labels: ['Crèmerie', 'Fruits et légumes'] });
+  });
+
+  it('mealie_create_food puts the food under an existing label', async () => {
+    expect(await callJson(client, 'mealie_create_food', { name: 'yaourt', label: 'cremerie' })).toEqual({ created: { name: 'yaourt', label: 'Crèmerie' } });
+    expect(posted).toEqual([{ name: 'yaourt', pluralName: null, aliases: [], labelId: 'lab-c' }]);
+  });
+
+  it('mealie_create_food refuses an unknown label, and creates it with createMissing', async () => {
+    const unknown = await client.callTool({ name: 'mealie_create_food', arguments: { name: 'pain', label: 'Boulangerie' } });
+    expect(toolText(unknown)).toBe('The label "Boulangerie" was not found. Set createMissing: true to create it, or see mealie_list_labels.');
+    expect(posted).toEqual([]);
+    expect(await callJson(client, 'mealie_create_food', { name: 'pain', label: 'Boulangerie', createMissing: true })).toMatchObject({
+      created: { label: 'Boulangerie' },
+    });
+    expect(written).toEqual([{ path: '/api/groups/labels', body: { name: 'Boulangerie' } }]);
+    expect(posted).toEqual([expect.objectContaining({ labelId: 'lab-Boulangerie' })]);
+  });
+
+  it('mealie_update_food changes the label, and null removes it', async () => {
+    expect(await callJson(client, 'mealie_update_food', { food: 'lait', label: 'Crèmerie' })).toMatchObject({ updated: { name: 'lait', label: 'Crèmerie' } });
+    const cleared = await callJson<{ updated: Record<string, unknown> }>(client, 'mealie_update_food', { food: 'lait', label: null });
+    expect(cleared.updated).not.toHaveProperty('label');
+    expect(written.map((w) => w.body.labelId)).toEqual(['lab-c', null]);
   });
 });

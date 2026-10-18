@@ -70,6 +70,7 @@ export function foodView(food: MealieFood) {
     name: food.name,
     ...(food.pluralName && food.pluralName !== food.name ? { pluralName: food.pluralName } : {}),
     ...(aliases.length > 0 ? { aliases } : {}),
+    ...(food.label ? { label: food.label.name } : {}),
   };
 }
 
