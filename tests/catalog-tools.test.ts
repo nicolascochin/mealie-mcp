@@ -11,6 +11,7 @@ const page = <T>(items: T[]) => ({ page: 1, per_page: -1, total: items.length, t
 let foods: MealieFood[];
 let units: MealieUnit[];
 let posted: unknown[];
+let written: Array<{ path: string; body: Record<string, unknown> }>;
 let app: TestApp;
 let client: Client;
 
@@ -18,7 +19,33 @@ beforeEach(async () => {
   foods = FOODS.map((f, i) => ({ id: `f${i}`, ...f, aliases: f.aliases.map((name) => ({ name })) }));
   units = UNITS.map((u, i) => ({ id: `u${i}`, ...u, aliases: u.aliases.map((name) => ({ name })) }));
   posted = [];
+  written = [];
+  const record = async (request: Request) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    written.push({ path: new URL(request.url).pathname, body });
+    return body;
+  };
+  const replace = <T extends { id: string }>(list: T[], id: string, body: Record<string, unknown>) => {
+    const index = list.findIndex((item) => item.id === id);
+    if (index < 0) return HttpResponse.json({ detail: 'not found' }, { status: 404 });
+    list[index] = { ...(body as unknown as T), id };
+    return HttpResponse.json(list[index]);
+  };
   mealie.use(
+    http.put(mealieUrl('/api/foods/merge'), async ({ request }) => {
+      const { fromFood } = (await record(request)) as { fromFood: string };
+      foods = foods.filter((food) => food.id !== fromFood);
+      return HttpResponse.json({ message: 'Successfully merged foods' });
+    }),
+    http.put(mealieUrl('/api/units/merge'), async ({ request }) => {
+      const { fromUnit } = (await record(request)) as { fromUnit: string };
+      units = units.filter((unit) => unit.id !== fromUnit);
+      return HttpResponse.json({ message: 'Successfully merged units' });
+    }),
+    http.get(mealieUrl('/api/foods/:id'), ({ params }) => HttpResponse.json(foods.find((food) => food.id === params.id))),
+    http.get(mealieUrl('/api/units/:id'), ({ params }) => HttpResponse.json(units.find((unit) => unit.id === params.id))),
+    http.put(mealieUrl('/api/foods/:id'), async ({ request, params }) => replace(foods, params.id as string, await record(request))),
+    http.put(mealieUrl('/api/units/:id'), async ({ request, params }) => replace(units, params.id as string, await record(request))),
     http.get(mealieUrl('/api/foods'), () => HttpResponse.json(page(foods))),
     http.get(mealieUrl('/api/units'), () => HttpResponse.json(page(units))),
     http.post(mealieUrl('/api/foods'), async ({ request }) => {
@@ -53,6 +80,12 @@ describe('catalog tools', () => {
     }
     for (const name of ['mealie_create_food', 'mealie_create_unit']) {
       expect(byName.get(name)?.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: false, idempotentHint: false });
+    }
+    for (const name of ['mealie_update_food', 'mealie_update_unit']) {
+      expect(byName.get(name)?.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: false, idempotentHint: true });
+    }
+    for (const name of ['mealie_merge_foods', 'mealie_merge_units']) {
+      expect(byName.get(name)?.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: true });
     }
   });
 
@@ -112,5 +145,96 @@ describe('catalog tools', () => {
     const duplicate = await client.callTool({ name: 'mealie_create_unit', arguments: { name: 'gramme fin', abbreviation: 'g' } });
     expect(toolText(duplicate)).toContain('"g" already names the unit "gramme"');
     expect(posted).toHaveLength(1);
+  });
+});
+
+describe('catalog editing tools', () => {
+  it('mealie_update_food changes only the given fields and sends every other key back', async () => {
+    const onion = foods[0]!;
+    Object.assign(onion, { description: 'bulbe', labelId: 'l1', householdsWithIngredientFood: ['maison'], substitutions: [{ note: 'échalote' }] });
+    expect(
+      await callJson(client, 'mealie_update_food', { food: 'oignons', name: 'oignon jaune doux', addAliases: ['oignon doux'], removeAliases: ['Oignon Jaune'] })
+    ).toEqual({ updated: { name: 'oignon jaune doux', pluralName: 'oignons', aliases: ['oignon doux'] } });
+    expect(written).toEqual([
+      {
+        path: '/api/foods/f0',
+        body: {
+          ...onion,
+          name: 'oignon jaune doux',
+          aliases: [{ name: 'oignon doux' }],
+        },
+      },
+    ]);
+  });
+
+  it('mealie_update_food removes the plural with null', async () => {
+    await callJson(client, 'mealie_update_food', { food: 'œuf', pluralName: null });
+    expect(written[0]?.body).toMatchObject({ name: 'œuf', pluralName: null, aliases: [{ name: 'oeuf' }, { name: 'oeufs' }] });
+  });
+
+  it('mealie_update_food accepts its own names but refuses those of another food', async () => {
+    expect(await callJson(client, 'mealie_update_food', { food: 'oignon', name: 'Oignon' })).toMatchObject({ updated: { name: 'Oignon' } });
+    const clash = await client.callTool({ name: 'mealie_update_food', arguments: { food: 'oignon', addAliases: ['OEUFS'] } });
+    expect(clash.isError).toBe(true);
+    expect(toolText(clash)).toBe('"OEUFS" already names the food "œuf". Merge them with mealie_merge_foods if they are the same food.');
+    expect(written).toHaveLength(1);
+  });
+
+  it('mealie_update_food explains unknown foods, unknown aliases and empty edits', async () => {
+    const unknown = await client.callTool({ name: 'mealie_update_food', arguments: { food: 'oignn', name: 'x' } });
+    expect(toolText(unknown)).toBe('The food "oignn" was not found. Close matches: "oignon".');
+    const alias = await client.callTool({ name: 'mealie_update_food', arguments: { food: 'farine', removeAliases: ['farine de seigle'] } });
+    expect(toolText(alias)).toBe('Not an alias: "farine de seigle". Its aliases are "farine de blé".');
+    const empty = await client.callTool({ name: 'mealie_update_food', arguments: { food: 'farine' } });
+    expect(toolText(empty)).toContain('Nothing to change');
+    expect(written).toEqual([]);
+  });
+
+  it('mealie_update_unit changes abbreviations and refuses one used by another unit', async () => {
+    expect(await callJson(client, 'mealie_update_unit', { unit: 'cl', abbreviation: null, addAliases: ['centil.'] })).toEqual({
+      updated: { name: 'centilitre', pluralName: 'centilitres', pluralAbbreviation: 'cl', aliases: ['centil.'] },
+    });
+    expect(written[0]?.body).toMatchObject({ abbreviation: '', pluralAbbreviation: 'cl', aliases: [{ name: 'centil.' }] });
+    const clash = await client.callTool({ name: 'mealie_update_unit', arguments: { unit: 'litre', abbreviation: 'g' } });
+    expect(toolText(clash)).toContain('"g" already names the unit "gramme"');
+  });
+
+  it('mealie_merge_foods merges, then keeps the names of the merged food as aliases', async () => {
+    foods.push({ id: 'dup', name: 'oignon blanc', pluralName: 'oignons blancs', aliases: [{ name: 'oignon jaune' }] });
+    expect(await callJson(client, 'mealie_merge_foods', { from: 'oignons blancs', into: 'oignon' })).toEqual({
+      merged: 'oignon blanc',
+      into: { name: 'oignon', pluralName: 'oignons', aliases: ['oignon jaune', 'oignon blanc', 'oignons blancs'] },
+      addedAliases: ['oignon blanc', 'oignons blancs'],
+    });
+    expect(written.map((w) => w.path)).toEqual(['/api/foods/merge', '/api/foods/f0']);
+    expect(written[0]?.body).toEqual({ fromFood: 'dup', toFood: 'f0' });
+    expect(foods.map((food) => food.id)).not.toContain('dup');
+  });
+
+  it('mealie_merge_foods leaves the aliases alone with keepNames: false', async () => {
+    foods.push({ id: 'dup', name: 'oignon blanc', pluralName: null, aliases: [] });
+    expect(await callJson(client, 'mealie_merge_foods', { from: 'oignon blanc', into: 'oignon', keepNames: false })).toEqual({
+      merged: 'oignon blanc',
+      into: { name: 'oignon', pluralName: 'oignons', aliases: ['oignon jaune'] },
+    });
+    expect(written.map((w) => w.path)).toEqual(['/api/foods/merge']);
+  });
+
+  it('mealie_merge_foods refuses to merge a food into itself, and unknown names', async () => {
+    const same = await client.callTool({ name: 'mealie_merge_foods', arguments: { from: 'oignons', into: 'Oignon' } });
+    expect(toolText(same)).toBe('"oignons" and "Oignon" are both the food "oignon": nothing to merge.');
+    const unknown = await client.callTool({ name: 'mealie_merge_foods', arguments: { from: 'poireau', into: 'oignon' } });
+    expect(toolText(unknown)).toContain('The food "poireau" was not found.');
+    expect(written).toEqual([]);
+  });
+
+  it('mealie_merge_units keeps the abbreviations of the merged unit', async () => {
+    units.push({ id: 'dup', name: 'gr.', pluralName: null, abbreviation: 'grs', pluralAbbreviation: null, aliases: [] });
+    expect(await callJson(client, 'mealie_merge_units', { from: 'gr.', into: 'gramme' })).toEqual({
+      merged: 'gr.',
+      into: { name: 'gramme', pluralName: 'grammes', abbreviation: 'g', aliases: ['gr', 'grs'] },
+      addedAliases: ['grs'],
+    });
+    expect(written[0]).toEqual({ path: '/api/units/merge', body: { fromUnit: 'dup', toUnit: 'u0' } });
   });
 });

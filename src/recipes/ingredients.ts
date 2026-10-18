@@ -1,6 +1,6 @@
 import * as z from 'zod';
-import { foodVariants, listFoods, listUnits, unitVariants } from '../catalog/catalog.js';
-import { resolveName, type NameVariant, type Resolution } from '../catalog/resolve.js';
+import { describeResolutionFailure, foodVariants, listFoods, listUnits, unitVariants } from '../catalog/catalog.js';
+import { resolveName, type NameVariant } from '../catalog/resolve.js';
 import type { MealieClient } from '../mealie/client.js';
 import { api } from '../mealie/path.js';
 import type { MealieFood, MealieIngredient, MealieUnit } from '../mealie/types.js';
@@ -29,17 +29,6 @@ export interface CatalogRefs {
   unit(name: string): MealieUnit;
 }
 
-function describeFailure<T extends { name: string }>(kind: string, name: string, resolution: Resolution<T>, canCreate: boolean): string {
-  if (resolution.status === 'ambiguous') {
-    return `The ${kind} "${name}" is ambiguous: ${resolution.candidates.map((c) => `"${c.name}"`).join(', ')}. Use one of these exact names.`;
-  }
-  const close = resolution.status === 'not_found' && resolution.suggestions.length
-    ? ` Close matches: ${resolution.suggestions.map((c) => `"${c.name}"`).join(', ')}.`
-    : '';
-  const create = canCreate ? ` Set createMissing: true to create it, or use mealie_create_${kind}.` : '';
-  return `The ${kind} "${name}" was not found.${close}${create}`;
-}
-
 async function resolveAll<T extends { name: string }>(
   kind: 'food' | 'unit',
   names: string[],
@@ -59,7 +48,7 @@ async function resolveAll<T extends { name: string }>(
       const created = await create(name);
       items.push(created);
       resolved.set(name, created);
-    } else problems.push(describeFailure(kind, name, resolution, !createMissing));
+    } else problems.push(describeResolutionFailure(kind, name, resolution, !createMissing));
   }
   return resolved;
 }
