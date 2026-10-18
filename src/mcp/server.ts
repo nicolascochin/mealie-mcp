@@ -5,6 +5,7 @@ import { VERSION } from '../version.js';
 import { registerCatalogTools } from './tools/catalog.js';
 import { registerEditIngredients } from './tools/edit-ingredients.js';
 import { registerEditSteps } from './tools/edit-steps.js';
+import { registerFavoriteTools } from './tools/favorites.js';
 import { registerMealPlanTools } from './tools/mealplans.js';
 import { registerParseIngredients } from './tools/parse-ingredients.js';
 import { registerRecipeLifecycleTools } from './tools/recipe-lifecycle.js';
@@ -36,6 +37,7 @@ export function createMcpServer(deps: ToolDeps): McpServer {
   registerWhoami(server, deps);
   registerCatalogTools(server, deps);
   registerRecipeTools(server, deps);
+  registerFavoriteTools(server, deps);
   registerEditIngredients(server, deps);
   registerParseIngredients(server, deps);
   registerEditSteps(server, deps);

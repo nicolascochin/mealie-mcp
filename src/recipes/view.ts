@@ -1,4 +1,4 @@
-import type { MealieIngredient, MealieRecipe, MealieRecipeSummary } from '../mealie/types.js';
+import type { MealieIngredient, MealieRecipe, MealieRecipeSummary, MealieUserRating } from '../mealie/types.js';
 
 /** Drops null, undefined, empty strings and empty arrays: the model only sees what is set. */
 function compact<T extends Record<string, unknown>>(value: T): Partial<T> {
@@ -44,9 +44,10 @@ function ingredientView(ingredient: MealieIngredient, n: number) {
 
 /**
  * The structured view of a recipe. Ingredients and steps are numbered from 1; steps refer to
- * ingredients by number, never by Mealie's referenceId.
+ * ingredients by number, never by Mealie's referenceId. `mine` is the connected user's rating and
+ * favorite flag, when known; `rating` stays the recipe's own (the average of its ratings).
  */
-export function recipeView(recipe: MealieRecipe) {
+export function recipeView(recipe: MealieRecipe, mine?: MealieUserRating) {
   const ingredients = recipe.recipeIngredient ?? [];
   const numberOf = new Map<string, number>();
   ingredients.forEach((ingredient, i) => {
@@ -86,6 +87,8 @@ export function recipeView(recipe: MealieRecipe) {
     categories: names(recipe.recipeCategory),
     tools: names(recipe.tools),
     rating: recipe.rating ? recipe.rating : undefined,
+    myRating: mine?.rating ? mine.rating : undefined,
+    favorite: mine?.isFavorite ? true : undefined,
     source: recipe.orgURL,
     ingredients: ingredients.map((ingredient, i) => ingredientView(ingredient, i + 1)),
     steps,

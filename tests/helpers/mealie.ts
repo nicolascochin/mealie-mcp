@@ -27,5 +27,8 @@ export const selfHandler = http.get(mealieUrl('/api/users/self'), ({ request }) 
     : HttpResponse.json({ detail: 'Not authenticated' }, { status: 401 })
 );
 
+/** `GET /api/users/self/ratings` for a user who has rated nothing yet. */
+export const ratingsHandler = http.get(mealieUrl('/api/users/self/ratings'), () => HttpResponse.json({ ratings: [] }));
+
 /** Simulated Mealie shared by all tests; handlers added with `use()` are reset after each test. */
-export const mealie = setupServer(selfHandler);
+export const mealie = setupServer(selfHandler, ratingsHandler);
