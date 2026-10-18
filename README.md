@@ -14,8 +14,9 @@ Chaque personne se connecte avec son propre token API Mealie, passé dans l'en-t
 | `mealie_search_foods` | Retrouve un aliment par nom, pluriel ou alias (sans casse ni accents), ou propose des candidats |
 | `mealie_search_units` | Idem pour les unités, abréviations comprises |
 | `mealie_list_tags`, `mealie_list_categories`, `mealie_list_tools` | Tags, catégories et ustensiles de recettes |
-| `mealie_create_food`, `mealie_create_unit` | Ajoute un aliment ou une unité ; refuse un nom déjà utilisé |
-| `mealie_update_food`, `mealie_update_unit` | Renomme, change pluriel et abréviations, ajoute ou retire des alias ; ne touche qu'aux champs fournis |
+| `mealie_list_labels` | Rayons (labels) des aliments, qui regroupent les articles des listes de courses |
+| `mealie_create_food`, `mealie_create_unit` | Ajoute un aliment (avec son rayon) ou une unité ; refuse un nom déjà utilisé |
+| `mealie_update_food`, `mealie_update_unit` | Renomme, change pluriel, abréviations ou rayon, ajoute ou retire des alias ; ne touche qu'aux champs fournis |
 | `mealie_merge_foods`, `mealie_merge_units` | Fusionne un doublon dans l'entrée qui reste : recettes et listes de courses pointent ensuite vers elle, et ses noms deviennent des alias |
 | `mealie_search_recipes` | Recherche par texte, tags, catégories, ustensiles ou aliments (par leur nom), ou parmi les favoris, avec tri et pagination |
 | `mealie_get_recipe` | Recette complète : ingrédients numérotés (quantité, unité, aliment, note, section), étapes avec les numéros de leurs ingrédients, notes, note et favori de la personne ; signale les ingrédients en texte libre |
@@ -29,7 +30,7 @@ Chaque personne se connecte avec son propre token API Mealie, passé dans l'en-t
 | `mealie_import_recipe_from_url` | Fait importer une page web par Mealie ; indique les ingrédients restés en texte libre |
 | `mealie_duplicate_recipe`, `mealie_mark_recipe_made` | Copie une recette ; note qu'elle a été cuisinée |
 | `mealie_delete_recipe` | Supprime une recette (le client demande confirmation) |
-| `mealie_list_shopping_lists`, `mealie_get_shopping_list` | Listes de courses ; articles numérotés, non cochés par défaut |
+| `mealie_list_shopping_lists`, `mealie_get_shopping_list` | Listes de courses ; articles numérotés, regroupés par rayon, non cochés par défaut |
 | `mealie_create_shopping_list`, `mealie_rename_shopping_list`, `mealie_delete_shopping_list` | Crée, renomme ou supprime une liste ; deux listes ne peuvent pas porter le même nom |
 | `mealie_add_shopping_items` | Ajoute des articles avec aliments et unités du catalogue, que Mealie fusionne avec les articles existants |
 | `mealie_update_shopping_items`, `mealie_remove_shopping_items` | Coche, décoche, change quantité ou note ; supprime des articles |

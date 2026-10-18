@@ -35,6 +35,14 @@ export interface MealieFood {
   pluralName?: string | null;
   description?: string | null;
   aliases?: MealieAlias[] | null;
+  labelId?: string | null;
+  label?: MealieLabel | null;
+}
+
+/** A label: the store section of a food or a shopping item, e.g. "Crèmerie". */
+export interface MealieLabel {
+  id: string;
+  name: string;
 }
 
 /** An ingredient unit, as `GET /api/units` returns it (fields this server reads). */
@@ -130,12 +138,16 @@ export interface MealieShoppingItem {
   display?: string | null;
   checked?: boolean | null;
   position?: number | null;
+  /** Set by Mealie from the item's food when the item has none of its own. */
+  label?: MealieLabel | null;
   recipeReferences?: Array<{ recipeId: string; recipeQuantity?: number | null; recipeScale?: number | null }> | null;
 }
 
 /** A shopping list with its items, as `GET /api/households/shopping/lists/{id}` returns it. */
 export interface MealieShoppingList extends MealieShoppingListSummary {
   listItems?: MealieShoppingItem[] | null;
+  /** The order of the labels in this list. */
+  labelSettings?: Array<{ labelId: string; position?: number | null }> | null;
   recipeReferences?: Array<{ recipeId: string; recipeQuantity?: number | null; recipe?: { name: string; slug: string } | null }> | null;
 }
 

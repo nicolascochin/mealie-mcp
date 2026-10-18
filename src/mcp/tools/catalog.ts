@@ -14,6 +14,7 @@ import {
   unitView,
 } from '../../catalog/catalog.js';
 import { assertNamesFree, editAliases, namesToKeep, requireEntry } from '../../catalog/edit.js';
+import { listLabels, resolveLabel } from '../../catalog/labels.js';
 import type { NameVariant } from '../../catalog/resolve.js';
 import type { MealieClient } from '../../mealie/client.js';
 import { describeError } from '../../mealie/errors.js';
@@ -32,6 +33,7 @@ const optionalName = (what: string) => z.string().trim().min(1).max(200).optiona
 const aliases = z.array(z.string().trim().min(1).max(200)).max(20).optional().describe('Other names for the same thing');
 const nullableName = (what: string) => z.string().trim().min(1).max(200).nullable().optional().describe(what);
 const aliasEdit = (what: string) => z.array(z.string().trim().min(1).max(200)).max(20).optional().describe(what);
+const createLabel = z.boolean().optional().describe('Create the label if it does not exist yet (default false)');
 const keepNames = z.boolean().optional().describe('Keep the names of the merged entry as aliases of the one that stays (default true)');
 
 const DUPLICATE = 'Use it instead of creating a duplicate.';
@@ -136,6 +138,20 @@ export function registerCatalogTools(server: McpServer, { mealie, logger }: Tool
   );
 
   server.registerTool(
+    'mealie_list_labels',
+    {
+      title: 'List labels',
+      description:
+        'List the labels (store sections such as "Fruits et légumes" or "Crèmerie") that foods can belong to: shopping lists group their items by label.',
+      annotations: READ_ONLY,
+    },
+    () =>
+      runTool(logger, 'mealie_list_labels', async () => ({
+        labels: (await listLabels(mealie)).map((label) => label.name).sort((a, b) => a.localeCompare(b)),
+      }))
+  );
+
+  server.registerTool(
     'mealie_create_food',
     {
       title: 'Create a food',
@@ -145,16 +161,20 @@ export function registerCatalogTools(server: McpServer, { mealie, logger }: Tool
         name: name('Singular name, e.g. "échalote"'),
         pluralName: optionalName('Plural, e.g. "échalotes"'),
         aliases,
+        label: optionalName('Label (store section), e.g. "Fruits et légumes"; see mealie_list_labels'),
+        createMissing: createLabel,
       }),
       annotations: CREATE,
     },
-    ({ name, pluralName, aliases }) =>
+    ({ name, pluralName, aliases, label, createMissing }) =>
       runTool(logger, 'mealie_create_food', async () => {
         assertNamesFree('food', [name, ...present([pluralName]), ...(aliases ?? [])], await listFoods(mealie), foodVariants, DUPLICATE);
+        const labelId = label ? (await resolveLabel(mealie, label, createMissing ?? false)).id : undefined;
         const created = await mealie.post<MealieFood>(api`/api/foods`, {
           name,
           pluralName: pluralName ?? null,
           aliases: (aliases ?? []).map((alias) => ({ name: alias })),
+          ...(labelId ? { labelId } : {}),
         });
         return { created: foodView(created) };
       })
@@ -197,30 +217,34 @@ export function registerCatalogTools(server: McpServer, { mealie, logger }: Tool
     {
       title: 'Update a food',
       description:
-        'Rename a food of the Mealie catalog, change its plural, or add and remove aliases. Only the given fields change. Refuses a name already used by another food: merge duplicates with mealie_merge_foods instead.',
+        'Rename a food of the Mealie catalog, change its plural or label (store section), or add and remove aliases. Only the given fields change. Refuses a name already used by another food: merge duplicates with mealie_merge_foods instead.',
       inputSchema: z.object({
         food: name('Food to change, by name, plural or alias'),
         name: optionalName('New singular name'),
         pluralName: nullableName('New plural; null removes it'),
         addAliases: aliasEdit('Aliases to add'),
         removeAliases: aliasEdit('Aliases to remove'),
+        label: nullableName('New label (store section), e.g. "Crèmerie"; null removes it'),
+        createMissing: createLabel,
       }),
       annotations: UPDATE,
     },
-    ({ food, name, pluralName, addAliases, removeAliases }) =>
+    ({ food, name, pluralName, addAliases, removeAliases, label, createMissing }) =>
       runTool(logger, 'mealie_update_food', async () => {
-        if (name === undefined && pluralName === undefined && !addAliases?.length && !removeAliases?.length) {
-          throw new ToolError('Nothing to change: give name, pluralName, addAliases or removeAliases.');
+        if ([name, pluralName, label].every((field) => field === undefined) && !addAliases?.length && !removeAliases?.length) {
+          throw new ToolError('Nothing to change: give name, pluralName, label, addAliases or removeAliases.');
         }
         const foods = await listFoods(mealie);
         const current = requireEntry('food', food, foods, foodVariants);
         const names = present([name, pluralName, ...(addAliases ?? [])]);
         assertNamesFree('food', names, foods, foodVariants, 'Merge them with mealie_merge_foods if they are the same food.', current.id);
         const aliases = editAliases(aliasNames(current.aliases), addAliases, removeAliases);
+        const labelId = label ? (await resolveLabel(mealie, label, createMissing ?? false)).id : label;
         const updated = await mealie.request<MealieFood>('PUT', api`/api/foods/${current.id}`, {
           ...current,
           ...(name !== undefined ? { name } : {}),
           ...(pluralName !== undefined ? { pluralName } : {}),
+          ...(labelId !== undefined ? { labelId } : {}),
           aliases: aliases.map((alias) => ({ name: alias })),
         });
         return { updated: foodView(updated) };
