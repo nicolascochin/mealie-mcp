@@ -8,7 +8,7 @@ Chaque personne se connecte avec son propre token API Mealie, passé dans l'en-t
 
 ## Lancer en local
 
-Prérequis : Node 24.
+Prérequis : Node à la version de `.node-version` (24.22.0). Les gestionnaires de versions qui lisent ce fichier, comme fnm ou nodenv, la sélectionnent automatiquement.
 
 ```sh
 npm install

@@ -6,7 +6,7 @@ Le travail est suivi dans Kaneo, projet « Code cloud - mealie mcp » (tickets C
 
 ## Décisions
 
-- **Stack** : TypeScript, Node 24, SDK MCP TypeScript officiel (`@modelcontextprotocol/server` + `@modelcontextprotocol/node`), transport Streamable HTTP sur `/mcp`, serveur `node:http` sans framework.
+- **Stack** : TypeScript, Node 24 (version exacte figée dans `.node-version`, utilisée par la CI et l'environnement cloud), SDK MCP TypeScript officiel (`@modelcontextprotocol/server` + `@modelcontextprotocol/node`), transport Streamable HTTP sur `/mcp`, serveur `node:http` sans framework.
 - **Sans état** : une instance de serveur MCP par requête HTTP. Rien n'est stocké : ni base de données, ni session, ni clé de chiffrement.
 - **Authentification** : chaque personne colle son token API Mealie dans les en-têtes du connecteur (`Authorization: Bearer <token>`). Le serveur le transmet à Mealie pour chaque appel et agit donc avec les droits de cette personne.
 - **Ingrédients** : toujours manipulés sous forme structurée (quantité, unité, aliment, note). Avant d'écrire, relire la recette ; renvoyer à Mealie les ingrédients non modifiés exactement tels qu'il les a fournis (`referenceId`, sections, sous-recettes, substitutions, texte d'origine). Jamais de réécriture en texte libre.
