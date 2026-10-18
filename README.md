@@ -20,6 +20,11 @@ Chaque personne se connecte avec son propre token API Mealie, passé dans l'en-t
 | `mealie_suggest_recipes` | « Que puis-je faire avec… » : recettes qui utilisent ces aliments, avec ce qui manque |
 | `mealie_edit_ingredients` | Ajoute, modifie, déplace ou supprime des ingrédients en une écriture, sans jamais les passer en texte libre ; structure les ingrédients importés en texte libre |
 | `mealie_edit_steps` | Ajoute, modifie, déplace ou supprime des étapes en une écriture ; lie ou délie des ingrédients par leur numéro, sans perdre les liens existants |
+| `mealie_create_recipe` | Crée une recette avec ingrédients structurés, étapes liées et métadonnées |
+| `mealie_update_recipe` | Modifie description, temps, portions, rendement, tags, catégories, notes ou source, sans toucher aux ingrédients ni aux étapes |
+| `mealie_import_recipe_from_url` | Fait importer une page web par Mealie ; indique les ingrédients restés en texte libre |
+| `mealie_duplicate_recipe`, `mealie_mark_recipe_made` | Copie une recette ; note qu'elle a été cuisinée |
+| `mealie_delete_recipe` | Supprime une recette (le client demande confirmation) |
 
 ## Lancer en local
 
