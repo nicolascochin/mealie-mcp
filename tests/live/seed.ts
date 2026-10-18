@@ -15,7 +15,7 @@ export interface LiveSeed {
 
 type Json = Record<string, unknown>;
 
-async function call<T>(mealieUrl: string, method: string, path: string, auth: string | undefined, body?: unknown): Promise<T> {
+export async function call<T>(mealieUrl: string, method: string, path: string, auth: string | undefined, body?: unknown): Promise<T> {
   const headers: Record<string, string> = { accept: 'application/json' };
   if (auth) headers.authorization = `Bearer ${auth}`;
   let payload: string | undefined;
@@ -105,6 +105,23 @@ export async function seed(mealieUrl: string): Promise<LiveSeed> {
     recipes[fixture.name] = await createRecipe(mealieUrl, token, fixture, units, foods, organizers);
   }
   return { mealieUrl, token, username: LIVE_USER.username, recipes };
+}
+
+/**
+ * Creates a recipe from a fixture with the user's token, linking the catalog entries it names.
+ * The catalog must already hold them (see seed()).
+ */
+export async function createFixtureRecipe(mealieUrl: string, token: string, fixture: RecipeFixture): Promise<string> {
+  const byName = async (path: string) => {
+    const { items } = await call<{ items: Json[] }>(mealieUrl, 'GET', `${path}?page=1&perPage=-1`, token);
+    return new Map(items.map((item) => [item.name as string, item]));
+  };
+  const organizer = async (path: string) =>
+    new Map([...(await byName(path)).values()].map((o) => [o.name as string, { id: o.id, name: o.name, slug: o.slug }]));
+  return createRecipe(mealieUrl, token, fixture, await byName('/api/units'), await byName('/api/foods'), {
+    tags: await organizer('/api/organizers/tags'),
+    categories: await organizer('/api/organizers/categories'),
+  });
 }
 
 async function createRecipe(

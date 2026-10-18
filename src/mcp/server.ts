@@ -3,6 +3,7 @@ import type { Logger } from '../log.js';
 import type { MealieClient } from '../mealie/client.js';
 import { VERSION } from '../version.js';
 import { registerCatalogTools } from './tools/catalog.js';
+import { registerEditIngredients } from './tools/edit-ingredients.js';
 import { registerRecipeTools } from './tools/recipes.js';
 import { registerWhoami } from './tools/whoami.js';
 
@@ -30,5 +31,6 @@ export function createMcpServer(deps: ToolDeps): McpServer {
   registerWhoami(server, deps);
   registerCatalogTools(server, deps);
   registerRecipeTools(server, deps);
+  registerEditIngredients(server, deps);
   return server;
 }
