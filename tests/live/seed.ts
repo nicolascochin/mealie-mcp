@@ -168,6 +168,7 @@ async function createRecipe(
     recipeInstructions: steps,
     tags: (fixture.tags ?? []).map((name) => organizers.tags.get(name)),
     recipeCategory: (fixture.categories ?? []).map((name) => organizers.categories.get(name)),
+    recipeServings: fixture.servings ?? 0,
     prepTime: fixture.prepTime ?? null,
     totalTime: fixture.totalTime ?? null,
     notes: fixture.notes ?? [],

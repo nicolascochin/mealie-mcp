@@ -104,3 +104,30 @@ export interface MealieRecipeSuggestion {
   missingFoods?: MealieFood[] | null;
   missingTools?: Array<{ name: string }> | null;
 }
+
+/** A shopping list as `GET /api/households/shopping/lists` lists it. */
+export interface MealieShoppingListSummary {
+  id: string;
+  name: string;
+}
+
+export interface MealieShoppingItem {
+  id: string;
+  shoppingListId: string;
+  quantity?: number | null;
+  unit?: MealieUnit | null;
+  food?: MealieFood | null;
+  unitId?: string | null;
+  foodId?: string | null;
+  note?: string | null;
+  display?: string | null;
+  checked?: boolean | null;
+  position?: number | null;
+  recipeReferences?: Array<{ recipeId: string; recipeQuantity?: number | null; recipeScale?: number | null }> | null;
+}
+
+/** A shopping list with its items, as `GET /api/households/shopping/lists/{id}` returns it. */
+export interface MealieShoppingList extends MealieShoppingListSummary {
+  listItems?: MealieShoppingItem[] | null;
+  recipeReferences?: Array<{ recipeId: string; recipeQuantity?: number | null; recipe?: { name: string; slug: string } | null }> | null;
+}
