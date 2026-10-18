@@ -9,6 +9,11 @@ describe('Dockerfile', () => {
     expect(image).toBe(read('.node-version').trim());
   });
 
+  it('types the same Node major as .node-version', () => {
+    const types = JSON.parse(read('package.json')).devDependencies['@types/node'] as string;
+    expect(/\d+/.exec(types)?.[0]).toBe(read('.node-version').split('.')[0]);
+  });
+
   it('runs as a non-root user with a health check', () => {
     const dockerfile = read('Dockerfile');
     expect(dockerfile).toMatch(/^USER node$/m);
