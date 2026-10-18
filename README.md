@@ -42,6 +42,12 @@ Chaque personne se connecte avec son propre token API Mealie, passé dans l'en-t
 | `mealie_add_mealplan_entry`, `mealie_update_mealplan_entry`, `mealie_delete_mealplan_entry` | Place une recette ou une note à une date et un repas ; déplace, change ou retire un repas |
 | `mealie_plan_random_meal`, `mealie_list_mealplan_rules` | Fait tirer une recette par Mealie pour une date et un repas, selon les règles du foyer ; liste ces règles (jour, repas, recettes permises, par leur nom) |
 
+## Importer une recette depuis une photo
+
+Envoie la photo (ou une capture, ou le texte) dans la conversation avec Claude : il la lit lui-même, puis crée la recette avec `mealie_create_recipe`. Les ingrédients sont structurés et rattachés au catalogue, les étapes liées à leurs ingrédients, et une note indique la provenance. Un aliment absent du catalogue est signalé avec les noms proches : Claude choisit le bon, ou le crée avec `createMissing`.
+
+L'import par image de Mealie n'est pas utilisé : il demande une IA configurée dans Mealie, et un outil MCP ne reçoit pas les images de la conversation. Pour la même raison, la photo ne devient pas l'image de la recette : `mealie_set_recipe_image` n'accepte qu'une URL.
+
 ## Lancer en local
 
 Prérequis : Node à la version de `.node-version` (24.22.0). Les gestionnaires de versions qui lisent ce fichier, comme fnm ou nodenv, la sélectionnent automatiquement.

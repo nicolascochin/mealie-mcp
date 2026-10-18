@@ -103,6 +103,14 @@ afterEach(async () => {
 });
 
 describe('recipe lifecycle tools', () => {
+  it('tell the model to create a recipe shared as a photo or text with mealie_create_recipe', async () => {
+    expect(client.getInstructions()).toMatch(/photo, a screenshot or text, read it yourself and create it with mealie_create_recipe/);
+    const { tools } = await client.listTools();
+    const description = (name: string) => tools.find((t) => t.name === name)?.description ?? '';
+    expect(description('mealie_create_recipe')).toContain('a recipe shared as a photo, a screenshot or text');
+    expect(description('mealie_import_recipe_from_url')).toContain('For a photo or text without a URL, use mealie_create_recipe.');
+  });
+
   it('declare their annotations', async () => {
     const { tools } = await client.listTools();
     const hints = Object.fromEntries(tools.map((t) => [t.name, t.annotations?.destructiveHint]));
