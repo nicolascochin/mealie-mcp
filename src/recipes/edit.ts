@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import * as z from 'zod';
 import type { MealieIngredient, MealieInstruction } from '../mealie/types.js';
-import { ToolError } from '../mcp/tools/result.js';
 import { applyFields, ingredientFields, newIngredient, type CatalogRefs, type IngredientFields } from './ingredients.js';
+import { ListEdit } from './list-edit.js';
 
 const number = z.number().int().min(1).describe('Ingredient number, as mealie_get_recipe shows it');
 const after = z
@@ -33,9 +33,8 @@ export interface EditResult {
 const hasField = (fields: IngredientFields) => Object.values(fields).some((value) => value !== undefined);
 
 /**
- * Applies the operations to the ingredient list as Mealie returned it. Every number refers to
- * that original list, whatever the other operations do. Untouched ingredients are returned as the
- * very same objects. Nothing is applied if any operation is invalid.
+ * Applies the operations to the ingredient list as Mealie returned it (see ListEdit for the
+ * numbering rules). Nothing is applied if any operation is invalid.
  */
 export function applyIngredientOperations(
   original: MealieIngredient[],
@@ -44,57 +43,37 @@ export function applyIngredientOperations(
   refs: CatalogRefs,
   options: { unlinkSteps?: boolean; newId?: () => string } = {}
 ): EditResult {
-  const count = original.length;
-  const problems: string[] = [];
-  const checkNumber = (n: number, what: string) => {
-    if (n > count) problems.push(`${what}: there is no ingredient ${n} (the recipe has ${count}).`);
-    return n <= count;
-  };
-
-  const items = [...original];
-  const updated = new Set<number>();
-  const moved = new Set<number>();
-  const deleted = new Set<number>();
-  /** What goes after each original position (0 = start), in operation order. */
-  const anchored = new Map<number, Array<MealieIngredient | number>>();
-  const anchor = (position: number, entry: MealieIngredient | number) => anchored.set(position, [...(anchored.get(position) ?? []), entry]);
+  const edit = new ListEdit(original, 'ingredient');
 
   operations.forEach((op, i) => {
     const label = `Operation ${i + 1} (${op.op})`;
     switch (op.op) {
       case 'add': {
-        const { op: _op, after: position = count, ...fields } = op;
-        if (!fields.food && !fields.note) problems.push(`${label}: give at least a food or a note.`);
-        if (position > count) problems.push(`${label}: cannot add after ingredient ${position} (the recipe has ${count}).`);
-        else anchor(position, newIngredient(fields, refs, (options.newId ?? randomUUID)()));
+        const { op: _op, after: position, ...fields } = op;
+        if (!fields.food && !fields.note) edit.problems.push(`${label}: give at least a food or a note.`);
+        edit.add(label, position, newIngredient(fields, refs, (options.newId ?? randomUUID)()));
         break;
       }
       case 'update': {
         const { op: _op, n, ...fields } = op;
-        if (!hasField(fields)) problems.push(`${label}: nothing to change.`);
-        if (updated.has(n)) problems.push(`${label}: ingredient ${n} is updated twice; merge the changes.`);
-        if (checkNumber(n, label) && hasField(fields)) items[n - 1] = applyFields(original[n - 1]!, fields, refs);
-        updated.add(n);
+        if (!hasField(fields)) {
+          edit.problems.push(`${label}: nothing to change.`);
+          edit.check(n, label);
+        } else edit.update(label, n, (item) => applyFields(item, fields, refs));
         break;
       }
       case 'move':
-        if (moved.has(op.n)) problems.push(`${label}: ingredient ${op.n} is moved twice.`);
-        if (op.after > count) problems.push(`${label}: cannot move after ingredient ${op.after} (the recipe has ${count}).`);
-        if (checkNumber(op.n, label) && op.after <= count) anchor(op.after, op.n);
-        moved.add(op.n);
+        edit.move(label, op.n, op.after);
         break;
       case 'delete':
-        checkNumber(op.n, label);
-        deleted.add(op.n);
+        edit.delete(label, op.n);
         break;
     }
   });
-  for (const n of deleted) {
-    if (updated.has(n) || moved.has(n)) problems.push(`Ingredient ${n} is deleted and also updated or moved.`);
-  }
+  edit.validate();
 
   const deletedRefs = new Map<string, number>();
-  for (const n of deleted) {
+  for (const n of edit.deleted) {
     const ref = original[n - 1]?.referenceId;
     if (ref) deletedRefs.set(ref, n);
   }
@@ -103,18 +82,11 @@ export function applyIngredientOperations(
     instructions.forEach((step, i) => {
       for (const ref of step.ingredientReferences ?? []) {
         const n = ref.referenceId ? deletedRefs.get(ref.referenceId) : undefined;
-        if (n) problems.push(`Ingredient ${n} is used by step ${i + 1}: set unlinkSteps: true to delete it and remove it from its steps.`);
+        if (n) edit.problems.push(`Ingredient ${n} is used by step ${i + 1}: set unlinkSteps: true to delete it and remove it from its steps.`);
       }
     });
   }
-  if (problems.length) throw new ToolError(problems.join('\n'));
-
-  const resolve = (entry: MealieIngredient | number) => (typeof entry === 'number' ? items[entry - 1]! : entry);
-  const ingredients = [...(anchored.get(0) ?? []).map(resolve)];
-  for (let n = 1; n <= count; n++) {
-    if (!deleted.has(n) && !moved.has(n)) ingredients.push(items[n - 1]!);
-    ingredients.push(...(anchored.get(n) ?? []).map(resolve));
-  }
+  const ingredients = edit.result();
 
   if (!instructions.some(linked)) return { ingredients };
   return {
