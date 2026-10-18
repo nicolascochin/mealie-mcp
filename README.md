@@ -29,6 +29,8 @@ Chaque personne se connecte avec son propre token API Mealie, passé dans l'en-t
 | `mealie_add_shopping_items` | Ajoute des articles avec aliments et unités du catalogue, que Mealie fusionne avec les articles existants |
 | `mealie_update_shopping_items`, `mealie_remove_shopping_items` | Coche, décoche, change quantité ou note ; supprime des articles |
 | `mealie_add_recipe_to_shopping_list`, `mealie_remove_recipe_from_shopping_list` | Ajoute ou retire les ingrédients d'une recette, pour un facteur ou un nombre de portions |
+| `mealie_list_mealplans`, `mealie_get_todays_meals` | Menus entre deux dates (semaine en cours par défaut) ; repas du jour |
+| `mealie_add_mealplan_entry`, `mealie_update_mealplan_entry`, `mealie_delete_mealplan_entry` | Place une recette ou une note à une date et un repas ; déplace, change ou retire un repas |
 
 ## Lancer en local
 

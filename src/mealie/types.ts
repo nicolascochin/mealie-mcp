@@ -131,3 +131,14 @@ export interface MealieShoppingList extends MealieShoppingListSummary {
   listItems?: MealieShoppingItem[] | null;
   recipeReferences?: Array<{ recipeId: string; recipeQuantity?: number | null; recipe?: { name: string; slug: string } | null }> | null;
 }
+
+/** A meal plan entry, as `/api/households/mealplans` returns it (fields this server reads). */
+export interface MealieMealPlanEntry {
+  id: number | string;
+  date: string;
+  entryType: string;
+  title?: string | null;
+  text?: string | null;
+  recipeId?: string | null;
+  recipe?: { name: string; slug: string } | null;
+}
