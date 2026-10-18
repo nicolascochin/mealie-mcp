@@ -16,7 +16,7 @@ Le travail est suivi dans Kaneo, projet « Code cloud - mealie mcp » (tickets C
 ## Commandes
 
 ```sh
-npm install
+npm ci
 MEALIE_URL=http://localhost:9000 npm run dev   # serveur sur http://localhost:8080/mcp
 npm test                                       # tests unitaires et de bout en bout
 npm run typecheck
@@ -48,4 +48,5 @@ npm run build                                  # compile dans dist/
 
 - Une branche et une PR par ticket Kaneo : `ccmm-<n>-<sujet>`.
 - La CI (`.github/workflows/ci.yml`) lance typecheck, tests et build sur chaque PR.
-- `package-lock.json` est régénéré et committé par la CI sur la PR quand `package.json` change : certaines sessions de travail n'ont pas accès au registre npm.
+- La CI installe avec `npm ci` : `package-lock.json` est committé et doit être à jour. Après une modification de `package.json`, lancer `npm install` et committer le lockfile dans la même PR.
+- Environnement cloud : le hook SessionStart (`.claude/settings.json`, `.claude/hooks/session-start.sh`) installe dans `/opt` la version de Node lue dans `.node-version`, l'ajoute au `PATH`, puis lance `npm ci` (ou `npm install` sans lockfile). Il saute l'installation si `package.json`, `package-lock.json` et la version de Node n'ont pas changé. Hors du cloud, il ne fait rien.
