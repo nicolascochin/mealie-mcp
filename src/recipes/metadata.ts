@@ -37,7 +37,7 @@ const metadataSchema = z.object(metadataFields);
 export type MetadataFields = z.infer<typeof metadataSchema>;
 
 /** Resolves tag, category or tool names to Mealie organizers, creating the missing ones only on request. */
-async function resolveOrganizers(
+export async function resolveOrganizers(
   mealie: MealieClient,
   kind: OrganizerKind,
   wanted: string[] | undefined,

@@ -31,6 +31,8 @@ Chaque personne se connecte avec son propre token API Mealie, passé dans l'en-t
 | `mealie_set_recipe_image` | Fait télécharger par Mealie une image depuis une URL et en fait la photo de la recette |
 | `mealie_duplicate_recipe`, `mealie_mark_recipe_made` | Copie une recette ; note qu'elle a été cuisinée |
 | `mealie_delete_recipe` | Supprime une recette (le client demande confirmation) |
+| `mealie_tag_recipes`, `mealie_categorize_recipes` | Ajoute des tags ou des catégories à plusieurs recettes d'un coup, sans retirer les leurs |
+| `mealie_delete_recipes` | Supprime plusieurs recettes d'un coup (le client demande confirmation) ; rien n'est supprimé si un slug est inconnu |
 | `mealie_list_shopping_lists`, `mealie_get_shopping_list` | Listes de courses ; articles numérotés, regroupés par rayon, non cochés par défaut |
 | `mealie_create_shopping_list`, `mealie_rename_shopping_list`, `mealie_delete_shopping_list` | Crée, renomme ou supprime une liste ; deux listes ne peuvent pas porter le même nom |
 | `mealie_add_shopping_items` | Ajoute des articles avec aliments et unités du catalogue, que Mealie fusionne avec les articles existants |
