@@ -67,7 +67,7 @@ npm run build                                  # compile dans dist/
 - Chaque outil a ses tests : unitaires avec un Mealie simulé, et d'intégration contre le Mealie de test (à partir de CCMM-3).
 - Ne jamais écrire d'en-têtes HTTP ni de token dans les logs. Le logger masque aussi les clés sensibles en dernier recours.
 - ESM : les imports relatifs portent l'extension `.js`.
-- Code, commentaires, noms et messages de commit en anglais ; README et CLAUDE.md en français.
+- Code, commentaires, noms, messages de commit et README en anglais ; CLAUDE.md, PR et tickets Kaneo en français.
 - `VERSION` (`src/version.ts`) suit `package.json` : un test le vérifie.
 
 ## Workflow
