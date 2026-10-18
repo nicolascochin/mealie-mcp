@@ -10,6 +10,7 @@ Le travail est suivi dans Kaneo, projet « Code cloud - mealie mcp » (tickets C
 - **Sans état** : une instance de serveur MCP par requête HTTP. Rien n'est stocké : ni base de données, ni session, ni clé de chiffrement.
 - **Authentification** : chaque personne colle son token API Mealie dans les en-têtes du connecteur (`Authorization: Bearer <token>`). Le serveur le transmet à Mealie pour chaque appel et agit donc avec les droits de cette personne.
 - **Ingrédients** : toujours manipulés sous forme structurée (quantité, unité, aliment, note). Avant d'écrire, relire la recette ; renvoyer à Mealie les ingrédients non modifiés exactement tels qu'il les a fournis (`referenceId`, sections, sous-recettes, substitutions, texte d'origine). Jamais de réécriture en texte libre.
+- **Photos et textes** : Claude lit lui-même une recette envoyée en photo, en capture ou en texte, puis la crée avec `mealie_create_recipe` (marche à suivre dans les instructions du serveur). Un outil MCP ne reçoit pas les images de la conversation ; l'import par IA de Mealie n'est pas utilisé.
 - **Sécurité** : pas d'outil d'accès brut à l'API Mealie. Les outils destructifs sont annotés pour que le client demande confirmation. Le contenu des recettes importées est non fiable (injection de prompt possible).
 - **Cible** : Mealie v3.
 
