@@ -1,112 +1,112 @@
 # mealie-mcp
 
-Serveur MCP pour piloter [Mealie](https://github.com/mealie-recipes/mealie) depuis Claude (claude.ai web, mobile, desktop et Claude Code), sans casser les ingrédients structurés.
+MCP server to drive [Mealie](https://github.com/mealie-recipes/mealie) from Claude (claude.ai web, mobile, desktop and Claude Code), without breaking structured ingredients.
 
-Chaque personne se connecte avec son propre token API Mealie, passé dans l'en-tête `Authorization` du connecteur. Le serveur ne stocke rien.
+Each person connects with their own Mealie API token, passed in the connector's `Authorization` header. The server stores nothing.
 
-> En construction.
+> Work in progress.
 
-## Outils
+## Tools
 
-| Outil | Rôle |
-| ----- | ---- |
-| `mealie_whoami` | Utilisateur connecté : nom, foyer, groupe |
-| `mealie_search_foods` | Retrouve un aliment par nom, pluriel ou alias (sans casse ni accents), ou propose des candidats |
-| `mealie_search_units` | Idem pour les unités, abréviations comprises |
-| `mealie_list_tags`, `mealie_list_categories`, `mealie_list_tools` | Tags, catégories et ustensiles de recettes |
-| `mealie_list_labels` | Rayons (labels) des aliments, qui regroupent les articles des listes de courses |
-| `mealie_create_food`, `mealie_create_unit` | Ajoute un aliment (avec son rayon) ou une unité ; refuse un nom déjà utilisé |
-| `mealie_update_food`, `mealie_update_unit` | Renomme, change pluriel, abréviations ou rayon, ajoute ou retire des alias ; ne touche qu'aux champs fournis |
-| `mealie_merge_foods`, `mealie_merge_units` | Fusionne un doublon dans l'entrée qui reste : recettes et listes de courses pointent ensuite vers elle, et ses noms deviennent des alias |
-| `mealie_search_recipes` | Recherche par texte, tags, catégories, ustensiles ou aliments (par leur nom), ou parmi les favoris, avec tri et pagination |
-| `mealie_get_recipe` | Recette complète : ingrédients numérotés (quantité, unité, aliment, note, section), étapes avec les numéros de leurs ingrédients, notes, note et favori de la personne, présence d'une photo ; signale les ingrédients en texte libre |
-| `mealie_set_favorite`, `mealie_rate_recipe` | Ajoute ou retire un favori ; note une recette de 0,5 à 5 étoiles (0 retire la note), pour la personne connectée |
-| `mealie_suggest_recipes` | « Que puis-je faire avec… » : recettes qui utilisent ces aliments, avec ce qui manque |
-| `mealie_edit_ingredients` | Ajoute, modifie, déplace ou supprime des ingrédients en une écriture, sans jamais les passer en texte libre ; structure les ingrédients importés en texte libre |
-| `mealie_parse_ingredients` | Passe les ingrédients en texte libre au parseur de Mealie et propose quantité, unité, aliment et note, prêts pour `mealie_edit_ingredients` (n'écrit rien) |
-| `mealie_edit_steps` | Ajoute, modifie, déplace ou supprime des étapes en une écriture ; lie ou délie des ingrédients par leur numéro, sans perdre les liens existants |
-| `mealie_create_recipe` | Crée une recette avec ingrédients structurés, étapes liées et métadonnées |
-| `mealie_update_recipe` | Modifie description, temps, portions, rendement, tags, catégories, ustensiles, notes ou source, sans toucher aux ingrédients ni aux étapes |
-| `mealie_import_recipe_from_url` | Fait importer une page web par Mealie ; indique les ingrédients restés en texte libre |
-| `mealie_set_recipe_image` | Fait télécharger par Mealie une image depuis une URL et en fait la photo de la recette |
-| `mealie_duplicate_recipe`, `mealie_mark_recipe_made` | Copie une recette ; note qu'elle a été cuisinée |
-| `mealie_delete_recipe` | Supprime une recette (le client demande confirmation) |
-| `mealie_tag_recipes`, `mealie_categorize_recipes` | Ajoute des tags ou des catégories à plusieurs recettes d'un coup, sans retirer les leurs |
-| `mealie_delete_recipes` | Supprime plusieurs recettes d'un coup (le client demande confirmation) ; rien n'est supprimé si un slug est inconnu |
-| `mealie_list_shopping_lists`, `mealie_get_shopping_list` | Listes de courses ; articles numérotés, regroupés par rayon, non cochés par défaut |
-| `mealie_create_shopping_list`, `mealie_rename_shopping_list`, `mealie_delete_shopping_list` | Crée, renomme ou supprime une liste ; deux listes ne peuvent pas porter le même nom |
-| `mealie_add_shopping_items` | Ajoute des articles avec aliments et unités du catalogue, que Mealie fusionne avec les articles existants |
-| `mealie_update_shopping_items`, `mealie_remove_shopping_items` | Coche, décoche, change quantité ou note ; supprime des articles |
-| `mealie_add_recipe_to_shopping_list`, `mealie_remove_recipe_from_shopping_list` | Ajoute ou retire les ingrédients d'une recette, pour un facteur ou un nombre de portions |
-| `mealie_list_mealplans`, `mealie_get_todays_meals` | Menus entre deux dates (semaine en cours par défaut) ; repas du jour |
-| `mealie_add_mealplan_entry`, `mealie_update_mealplan_entry`, `mealie_delete_mealplan_entry` | Place une recette ou une note à une date et un repas ; déplace, change ou retire un repas |
-| `mealie_plan_random_meal`, `mealie_list_mealplan_rules` | Fait tirer une recette par Mealie pour une date et un repas, selon les règles du foyer ; liste ces règles (jour, repas, recettes permises, par leur nom) |
+| Tool | What it does |
+| ---- | ------------ |
+| `mealie_whoami` | Connected user: name, household, group |
+| `mealie_search_foods` | Finds a food by name, plural or alias (ignoring case and accents), or suggests candidates |
+| `mealie_search_units` | Same for units, abbreviations included |
+| `mealie_list_tags`, `mealie_list_categories`, `mealie_list_tools` | Recipe tags, categories and kitchen tools |
+| `mealie_list_labels` | Food labels (store sections), which group the items of shopping lists |
+| `mealie_create_food`, `mealie_create_unit` | Adds a food (with its label) or a unit; refuses a name already in use |
+| `mealie_update_food`, `mealie_update_unit` | Renames, changes the plural, abbreviations or label, adds or removes aliases; only touches the given fields |
+| `mealie_merge_foods`, `mealie_merge_units` | Merges a duplicate into the entry that stays: recipes and shopping lists then point to it, and the duplicate's names become aliases |
+| `mealie_search_recipes` | Searches by text, tags, categories, kitchen tools or foods (by name), or among favorites, with sorting and pagination |
+| `mealie_get_recipe` | Full recipe: numbered ingredients (quantity, unit, food, note, section), steps with the numbers of their ingredients, notes, the user's rating and favorite, whether it has a photo; flags free-text ingredients |
+| `mealie_set_favorite`, `mealie_rate_recipe` | Adds or removes a favorite; rates a recipe from 0.5 to 5 stars (0 removes the rating), for the connected user |
+| `mealie_suggest_recipes` | "What can I make with…": recipes that use these foods, with what is missing |
+| `mealie_edit_ingredients` | Adds, changes, moves or removes ingredients in one write, never turning them into free text; structures free-text ingredients from imports |
+| `mealie_parse_ingredients` | Runs free-text ingredients through Mealie's parser and proposes quantity, unit, food and note, ready for `mealie_edit_ingredients` (writes nothing) |
+| `mealie_edit_steps` | Adds, changes, moves or removes steps in one write; links or unlinks ingredients by number, without losing existing links |
+| `mealie_create_recipe` | Creates a recipe with structured ingredients, linked steps and metadata |
+| `mealie_update_recipe` | Changes the description, times, servings, yield, tags, categories, kitchen tools, notes or source, without touching ingredients or steps |
+| `mealie_import_recipe_from_url` | Has Mealie import a web page; reports the ingredients left as free text |
+| `mealie_set_recipe_image` | Has Mealie download an image from a URL and makes it the recipe's photo |
+| `mealie_duplicate_recipe`, `mealie_mark_recipe_made` | Copies a recipe; records that it was cooked |
+| `mealie_delete_recipe` | Deletes a recipe (the client asks for confirmation) |
+| `mealie_tag_recipes`, `mealie_categorize_recipes` | Adds tags or categories to several recipes at once, keeping their own |
+| `mealie_delete_recipes` | Deletes several recipes at once (the client asks for confirmation); nothing is deleted if a slug is unknown |
+| `mealie_list_shopping_lists`, `mealie_get_shopping_list` | Shopping lists; numbered items, grouped by label, unchecked ones by default |
+| `mealie_create_shopping_list`, `mealie_rename_shopping_list`, `mealie_delete_shopping_list` | Creates, renames or deletes a list; two lists cannot share a name |
+| `mealie_add_shopping_items` | Adds items with foods and units from the catalog, which Mealie merges with existing items |
+| `mealie_update_shopping_items`, `mealie_remove_shopping_items` | Checks, unchecks, changes quantity or note; removes items |
+| `mealie_add_recipe_to_shopping_list`, `mealie_remove_recipe_from_shopping_list` | Adds or removes a recipe's ingredients, for a scale factor or a number of servings |
+| `mealie_list_mealplans`, `mealie_get_todays_meals` | Meal plans between two dates (current week by default); today's meals |
+| `mealie_add_mealplan_entry`, `mealie_update_mealplan_entry`, `mealie_delete_mealplan_entry` | Plans a recipe or a note for a date and a meal; moves, changes or removes a planned meal |
+| `mealie_plan_random_meal`, `mealie_list_mealplan_rules` | Has Mealie pick a recipe for a date and a meal, following the household's rules; lists those rules (day, meal, allowed recipes, by name) |
 
-## Importer une recette depuis une photo
+## Importing a recipe from a photo
 
-Envoie la photo (ou une capture, ou le texte) dans la conversation avec Claude : il la lit lui-même, puis crée la recette avec `mealie_create_recipe`. Les ingrédients sont structurés et rattachés au catalogue, les étapes liées à leurs ingrédients, et une note indique la provenance. Un aliment absent du catalogue est signalé avec les noms proches : Claude choisit le bon, ou le crée avec `createMissing`.
+Send the photo (or a screenshot, or the text) in the conversation with Claude: Claude reads it, then creates the recipe with `mealie_create_recipe`. Ingredients are structured and matched to the catalog, steps are linked to their ingredients, and a note records where the recipe comes from. A food missing from the catalog is reported with close matches: Claude picks the right one, or creates it with `createMissing`.
 
-L'import par image de Mealie n'est pas utilisé : il demande une IA configurée dans Mealie, et un outil MCP ne reçoit pas les images de la conversation. Pour la même raison, la photo ne devient pas l'image de la recette : `mealie_set_recipe_image` n'accepte qu'une URL.
+Mealie's own image import is not used: it needs an AI provider configured in Mealie, and an MCP tool does not receive the images of the conversation. For the same reason, the photo does not become the recipe's image: `mealie_set_recipe_image` only takes a URL.
 
-## Lancer en local
+## Running locally
 
-Prérequis : Node à la version de `.node-version` (24.22.0). Les gestionnaires de versions qui lisent ce fichier, comme fnm ou nodenv, la sélectionnent automatiquement.
+Requirement: Node at the version in `.node-version` (24.22.0). Version managers that read this file, such as fnm or nodenv, select it automatically.
 
 ```sh
 npm install
 MEALIE_URL=http://localhost:9000 npm run dev
 ```
 
-Le serveur MCP écoute sur `http://localhost:8080/mcp`. Pour l'explorer :
+The MCP server listens on `http://localhost:8080/mcp`. To explore it:
 
 ```sh
 npx @modelcontextprotocol/inspector
 ```
 
-puis choisir le transport « Streamable HTTP » et l'URL `http://localhost:8080/mcp`.
+then choose the "Streamable HTTP" transport and the URL `http://localhost:8080/mcp`.
 
-## Image Docker
+## Docker image
 
-Chaque tag `vX.Y.Z` publie `ghcr.io/nicolascochin/mealie-mcp:X.Y.Z` (et `:X.Y`) pour amd64 et arm64. L'image tourne avec un utilisateur non-root et déclare un `HEALTHCHECK` sur `/healthz`.
+Each `vX.Y.Z` tag publishes `ghcr.io/nicolascochin/mealie-mcp:X.Y.Z` (and `:X.Y`) for amd64 and arm64. The image runs as a non-root user and declares a `HEALTHCHECK` on `/healthz`.
 
 ```sh
 docker run -d -p 8080:8080 -e MEALIE_URL=http://mealie:9000 ghcr.io/nicolascochin/mealie-mcp:0.1.0
 ```
 
-## Variables d'environnement
+## Environment variables
 
-| Variable     | Obligatoire | Défaut | Rôle                                                                        |
-| ------------ | ----------- | ------ | --------------------------------------------------------------------------- |
-| `MEALIE_URL` | oui         |        | Adresse de Mealie vue par le serveur, par exemple `http://mealie:9000`      |
-| `PORT`       | non         | `8080` | Port d'écoute                                                               |
-| `LOG_LEVEL`  | non         | `info` | `debug`, `info`, `warn`, `error` ou `silent`                                |
-| `TRUST_PROXY` | non        | `0`    | Nombre de reverse proxies devant le serveur dont on lit `X-Forwarded-For` (comme `trust proxy` d'Express) |
+| Variable      | Required | Default | Purpose                                                                     |
+| ------------- | -------- | ------- | --------------------------------------------------------------------------- |
+| `MEALIE_URL`  | yes      |         | Mealie's address as the server sees it, for example `http://mealie:9000`   |
+| `PORT`        | no       | `8080`  | Listening port                                                              |
+| `LOG_LEVEL`   | no       | `info`  | `debug`, `info`, `warn`, `error` or `silent`                                |
+| `TRUST_PROXY` | no       | `0`     | Number of reverse proxies in front of the server whose `X-Forwarded-For` is read (like Express's `trust proxy`) |
 
-Le serveur refuse de démarrer si une variable est absente ou invalide, et liste tous les problèmes d'un coup.
+The server refuses to start if a variable is missing or invalid, and lists every problem at once.
 
 ## Routes
 
-- `POST /mcp` : point d'entrée MCP (Streamable HTTP, sans état)
-- `GET /healthz` : répond `ok`, pour les sondes de santé
+- `POST /mcp`: MCP endpoint (Streamable HTTP, stateless)
+- `GET /healthz`: answers `ok`, for health probes
 
-## Authentification
+## Authentication
 
-Chaque requête sur `/mcp` doit porter `Authorization: Bearer <token API Mealie>`. Le token se crée dans Mealie, depuis le profil de l'utilisateur, rubrique « API Tokens ».
+Every request to `/mcp` must carry `Authorization: Bearer <Mealie API token>`. The token is created in Mealie, from the user's profile, under "API Tokens".
 
-- Sans token : `401`.
-- Token refusé par Mealie : `401`. Après 10 refus en 15 minutes depuis une même IP, toutes les requêtes de cette IP reçoivent `429` jusqu'à la fin de la fenêtre. Derrière un reverse proxy, régler `TRUST_PROXY` pour que l'IP comptée soit celle du client.
-- Mealie injoignable : `503`.
+- No token: `401`.
+- Token refused by Mealie: `401`. After 10 refusals in 15 minutes from the same IP, every request from that IP gets `429` until the window ends. Behind a reverse proxy, set `TRUST_PROXY` so that the counted IP is the client's.
+- Mealie unreachable: `503`.
 
-Un token valide est gardé 5 minutes en mémoire, indexé par son hash SHA-256 ; le token lui-même n'est ni stocké ni écrit dans les logs.
+A valid token is kept in memory for 5 minutes, keyed by its SHA-256 hash; the token itself is neither stored nor written to the logs.
 
-Pour tester avec le MCP Inspector, ajouter l'en-tête `Authorization` dans sa configuration d'authentification.
+To test with the MCP Inspector, add the `Authorization` header in its authentication settings.
 
-## Développement
+## Development
 
 ```sh
-npm test            # tests unitaires et de bout en bout (Mealie simulé)
-npm run test:live   # tests d'intégration contre un Mealie jetable (Docker requis)
+npm test            # unit and end-to-end tests (simulated Mealie)
+npm run test:live   # integration tests against a throwaway Mealie (Docker required)
 npm run typecheck
-npm run build       # compile dans dist/
-npm start           # lance la version compilée
+npm run build       # compiles into dist/
+npm start           # runs the compiled version
 ```
