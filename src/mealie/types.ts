@@ -142,3 +142,15 @@ export interface MealieMealPlanEntry {
   recipeId?: string | null;
   recipe?: { name: string; slug: string } | null;
 }
+
+/** One line of `POST /api/parser/ingredients`. A matched food or unit carries its id. */
+export interface MealieParsedIngredient {
+  input?: string | null;
+  confidence?: { average?: number | null } | null;
+  ingredient: {
+    quantity?: number | null;
+    unit?: { id?: string | null; name: string } | null;
+    food?: { id?: string | null; name: string } | null;
+    note?: string | null;
+  };
+}

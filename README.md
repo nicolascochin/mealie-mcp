@@ -19,6 +19,7 @@ Chaque personne se connecte avec son propre token API Mealie, passé dans l'en-t
 | `mealie_get_recipe` | Recette complète : ingrédients numérotés (quantité, unité, aliment, note, section), étapes avec les numéros de leurs ingrédients, notes ; signale les ingrédients en texte libre |
 | `mealie_suggest_recipes` | « Que puis-je faire avec… » : recettes qui utilisent ces aliments, avec ce qui manque |
 | `mealie_edit_ingredients` | Ajoute, modifie, déplace ou supprime des ingrédients en une écriture, sans jamais les passer en texte libre ; structure les ingrédients importés en texte libre |
+| `mealie_parse_ingredients` | Passe les ingrédients en texte libre au parseur de Mealie et propose quantité, unité, aliment et note, prêts pour `mealie_edit_ingredients` (n'écrit rien) |
 | `mealie_edit_steps` | Ajoute, modifie, déplace ou supprime des étapes en une écriture ; lie ou délie des ingrédients par leur numéro, sans perdre les liens existants |
 | `mealie_create_recipe` | Crée une recette avec ingrédients structurés, étapes liées et métadonnées |
 | `mealie_update_recipe` | Modifie description, temps, portions, rendement, tags, catégories, notes ou source, sans toucher aux ingrédients ni aux étapes |
