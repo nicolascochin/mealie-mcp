@@ -2,6 +2,7 @@ import { McpServer } from '@modelcontextprotocol/server';
 import type { Logger } from '../log.js';
 import type { MealieClient } from '../mealie/client.js';
 import { VERSION } from '../version.js';
+import { registerBulkTools } from './tools/bulk.js';
 import { registerCatalogTools } from './tools/catalog.js';
 import { registerEditIngredients } from './tools/edit-ingredients.js';
 import { registerEditSteps } from './tools/edit-steps.js';
@@ -42,6 +43,7 @@ export function createMcpServer(deps: ToolDeps): McpServer {
   registerParseIngredients(server, deps);
   registerEditSteps(server, deps);
   registerRecipeLifecycleTools(server, deps);
+  registerBulkTools(server, deps);
   registerShoppingTools(server, deps);
   registerMealPlanTools(server, deps);
   return server;
