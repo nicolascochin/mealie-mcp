@@ -1,5 +1,5 @@
 import type { MealieClient } from '../mealie/client.js';
-import { api } from '../mealie/path.js';
+import { api, type ApiPath } from '../mealie/path.js';
 import type { MealieFood, MealieOrganizer, MealieUnit, Paginated } from '../mealie/types.js';
 import { resolveName, type NameVariant, type Resolution } from './resolve.js';
 
@@ -32,7 +32,17 @@ export async function listUnits(mealie: MealieClient): Promise<MealieUnit[]> {
   return (await mealie.get<Paginated<MealieUnit>>(api`/api/units`, ALL)).items;
 }
 
-export type OrganizerKind = 'tags' | 'categories';
+export type OrganizerKind = 'tags' | 'categories' | 'tools';
+
+/** Mealie's endpoint for each kind of organizer. */
+export const ORGANIZER_PATHS: Record<OrganizerKind, ApiPath> = {
+  tags: api`/api/organizers/tags`,
+  categories: api`/api/organizers/categories`,
+  tools: api`/api/organizers/tools`,
+};
+
+/** One organizer of each kind, as error messages name it. */
+export const ORGANIZER_LABELS: Record<OrganizerKind, string> = { tags: 'tag', categories: 'category', tools: 'tool' };
 
 export function organizerVariants(organizer: MealieOrganizer): NameVariant[] {
   return [
@@ -42,8 +52,7 @@ export function organizerVariants(organizer: MealieOrganizer): NameVariant[] {
 }
 
 export async function listOrganizers(mealie: MealieClient, kind: OrganizerKind): Promise<MealieOrganizer[]> {
-  const path = kind === 'tags' ? api`/api/organizers/tags` : api`/api/organizers/categories`;
-  return (await mealie.get<Paginated<MealieOrganizer>>(path, ALL)).items;
+  return (await mealie.get<Paginated<MealieOrganizer>>(ORGANIZER_PATHS[kind], ALL)).items;
 }
 
 export async function resolveFood(mealie: MealieClient, name: string): Promise<Resolution<MealieFood>> {

@@ -1,8 +1,7 @@
 import * as z from 'zod';
-import { listOrganizers, organizerVariants, type OrganizerKind } from '../catalog/catalog.js';
+import { listOrganizers, ORGANIZER_LABELS, ORGANIZER_PATHS, organizerVariants, type OrganizerKind } from '../catalog/catalog.js';
 import { resolveName } from '../catalog/resolve.js';
 import type { MealieClient } from '../mealie/client.js';
-import { api } from '../mealie/path.js';
 import type { MealieOrganizer } from '../mealie/types.js';
 import { ToolError } from '../mcp/tools/result.js';
 
@@ -25,6 +24,7 @@ export const metadataFields = {
   totalTime: time('Total time'),
   tags: names('Tags'),
   categories: names('Categories'),
+  tools: names('Kitchen tools needed, e.g. "mixeur", "moule à tarte"'),
   notes: z
     .array(z.object({ title: z.string().trim().max(200).optional(), text: z.string().trim().min(1).max(5000) }))
     .max(30)
@@ -36,7 +36,7 @@ export const metadataFields = {
 const metadataSchema = z.object(metadataFields);
 export type MetadataFields = z.infer<typeof metadataSchema>;
 
-/** Resolves tag or category names to Mealie organizers, creating the missing ones only on request. */
+/** Resolves tag, category or tool names to Mealie organizers, creating the missing ones only on request. */
 async function resolveOrganizers(
   mealie: MealieClient,
   kind: OrganizerKind,
@@ -46,15 +46,14 @@ async function resolveOrganizers(
 ): Promise<MealieOrganizer[] | undefined> {
   if (wanted === undefined) return undefined;
   if (wanted.length === 0) return [];
-  const label = kind === 'tags' ? 'tag' : 'category';
+  const label = ORGANIZER_LABELS[kind];
   const existing = await listOrganizers(mealie, kind);
   const resolved: MealieOrganizer[] = [];
   for (const name of wanted) {
     const resolution = resolveName(name, existing, organizerVariants);
     if (resolution.status === 'found') resolved.push(resolution.item);
     else if (resolution.status === 'not_found' && createMissing) {
-      const path = kind === 'tags' ? api`/api/organizers/tags` : api`/api/organizers/categories`;
-      const created = await mealie.post<MealieOrganizer>(path, { name });
+      const created = await mealie.post<MealieOrganizer>(ORGANIZER_PATHS[kind], { name });
       existing.push(created);
       resolved.push(created);
     } else {
@@ -70,12 +69,13 @@ async function resolveOrganizers(
 
 /**
  * Turns the given fields into the matching keys of a Mealie recipe, ready for PATCH. Only the
- * fields present in `fields` appear in the result. Fails with every unknown tag or category at once.
+ * fields present in `fields` appear in the result. Fails with every unknown tag, category or tool at once.
  */
 export async function metadataPatch(mealie: MealieClient, fields: MetadataFields, createMissing: boolean): Promise<Record<string, unknown>> {
   const problems: string[] = [];
   const tags = await resolveOrganizers(mealie, 'tags', fields.tags, createMissing, problems);
   const categories = await resolveOrganizers(mealie, 'categories', fields.categories, createMissing, problems);
+  const tools = await resolveOrganizers(mealie, 'tools', fields.tools, createMissing, problems);
   if (problems.length) throw new ToolError(problems.join('\n'));
 
   const patch: Record<string, unknown> = {};
@@ -94,5 +94,6 @@ export async function metadataPatch(mealie: MealieClient, fields: MetadataFields
   set('notes', fields.notes?.map((note) => ({ title: note.title ?? '', text: note.text })));
   set('tags', tags?.map(({ id, name, slug }) => ({ id, name, slug })));
   set('recipeCategory', categories?.map(({ id, name, slug }) => ({ id, name, slug })));
+  set('tools', tools?.map(({ id, name, slug }) => ({ id, name, slug })));
   return patch;
 }

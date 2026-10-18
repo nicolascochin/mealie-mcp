@@ -1,6 +1,6 @@
 import type { McpServer } from '@modelcontextprotocol/server';
 import * as z from 'zod';
-import { foodVariants, listFoods, listOrganizers, organizerVariants, type OrganizerKind } from '../../catalog/catalog.js';
+import { foodVariants, listFoods, listOrganizers, ORGANIZER_LABELS, organizerVariants, type OrganizerKind } from '../../catalog/catalog.js';
 import { resolveName, type NameVariant } from '../../catalog/resolve.js';
 import type { MealieClient } from '../../mealie/client.js';
 import { api } from '../../mealie/path.js';
@@ -44,8 +44,7 @@ function resolveIds<T extends { id: string; name: string }>(
 
 async function organizerIds(mealie: MealieClient, kind: OrganizerKind, wanted: string[] | undefined): Promise<string[] | undefined> {
   if (!wanted?.length) return undefined;
-  const label = kind === 'tags' ? 'tag' : 'category';
-  return resolveIds(label, wanted, await listOrganizers(mealie, kind), organizerVariants, `mealie_list_${kind}`);
+  return resolveIds(ORGANIZER_LABELS[kind], wanted, await listOrganizers(mealie, kind), organizerVariants, `mealie_list_${kind}`);
 }
 
 async function foodIds(mealie: MealieClient, wanted: string[] | undefined): Promise<string[] | undefined> {
@@ -59,13 +58,14 @@ export function registerRecipeTools(server: McpServer, { mealie, logger }: ToolD
     {
       title: 'Search recipes',
       description:
-        'Search Mealie recipes by text, tags, categories or foods (names, as the user says them). Returns slug, name, times and tags, one page at a time.',
+        'Search Mealie recipes by text, tags, categories, kitchen tools or foods (names, as the user says them). Returns slug, name, times and tags, one page at a time.',
       inputSchema: z.object({
         query: z.string().trim().max(200).optional().describe('Free text searched in names, descriptions and ingredients'),
         tags: nameList('Tag names'),
         categories: nameList('Category names'),
+        tools: nameList('Kitchen tool names the recipes must use, e.g. "mixeur"'),
         foods: nameList('Food names the recipes must contain'),
-        matchAll: z.boolean().optional().describe('Require every listed tag, category and food (default: any of them)'),
+        matchAll: z.boolean().optional().describe('Require every listed tag, category, tool and food (default: any of them)'),
         sort: z.enum(Object.keys(SORTS) as [keyof typeof SORTS, ...Array<keyof typeof SORTS>]).optional().describe('Default: name'),
         page: z.number().int().min(1).max(1000).optional().describe('Page number, from 1'),
         perPage: z.number().int().min(1).max(50).optional().describe('Results per page (default 20)'),
@@ -74,9 +74,10 @@ export function registerRecipeTools(server: McpServer, { mealie, logger }: ToolD
     },
     (input) =>
       runTool(logger, 'mealie_search_recipes', async () => {
-        const [tags, categories, foods] = await Promise.all([
+        const [tags, categories, tools, foods] = await Promise.all([
           organizerIds(mealie, 'tags', input.tags),
           organizerIds(mealie, 'categories', input.categories),
+          organizerIds(mealie, 'tools', input.tools),
           foodIds(mealie, input.foods),
         ]);
         const [orderBy, orderDirection] = SORTS[input.sort ?? 'name'];
@@ -88,9 +89,11 @@ export function registerRecipeTools(server: McpServer, { mealie, logger }: ToolD
           search: input.query || undefined,
           tags,
           categories,
+          tools,
           foods,
           requireAllTags: input.matchAll,
           requireAllCategories: input.matchAll,
+          requireAllTools: input.matchAll,
           requireAllFoods: input.matchAll,
         });
         return {

@@ -11,6 +11,10 @@ const TAGS = [
   { id: 't2', name: 'Végétarien', slug: 'vegetarien' },
 ];
 const CATEGORIES = [{ id: 'c1', name: 'Plat', slug: 'plat' }];
+const TOOLS = [
+  { id: 'k1', name: 'Mixeur', slug: 'mixeur' },
+  { id: 'k2', name: 'Moule à tarte', slug: 'moule-a-tarte' },
+];
 const FOODS = [
   { id: 'f1', name: 'œuf', pluralName: 'œufs', aliases: [] },
   { id: 'f2', name: 'farine', pluralName: 'farine', aliases: [] },
@@ -25,6 +29,7 @@ beforeEach(async () => {
   mealie.use(
     http.get(mealieUrl('/api/organizers/tags'), () => HttpResponse.json(page(TAGS))),
     http.get(mealieUrl('/api/organizers/categories'), () => HttpResponse.json(page(CATEGORIES))),
+    http.get(mealieUrl('/api/organizers/tools'), () => HttpResponse.json(page(TOOLS))),
     http.get(mealieUrl('/api/foods'), () => HttpResponse.json(page(FOODS))),
     http.get(mealieUrl('/api/recipes/suggestions'), ({ request }) => {
       lastUrl = new URL(request.url);
@@ -58,6 +63,7 @@ describe('recipe tools', () => {
       query: 'quiche',
       tags: ['classique', 'Vegetarien'],
       categories: ['plat'],
+      tools: ['moule a tarte'],
       foods: ['oeufs'],
       matchAll: true,
       sort: 'newest',
@@ -74,6 +80,8 @@ describe('recipe tools', () => {
     expect(params.get('search')).toBe('quiche');
     expect(params.getAll('tags')).toEqual(['t1', 't2']);
     expect(params.getAll('categories')).toEqual(['c1']);
+    expect(params.getAll('tools')).toEqual(['k2']);
+    expect(params.get('requireAllTools')).toBe('true');
     expect(params.getAll('foods')).toEqual(['f1']);
     expect(params.get('requireAllTags')).toBe('true');
     expect(params.get('orderBy')).toBe('created_at');
@@ -93,6 +101,11 @@ describe('recipe tools', () => {
     expect(result.isError).toBe(true);
     expect(toolText(result)).toBe('The tag "clasique" was not found. Close matches: "Classique". See mealie_list_tags.');
     expect(lastUrl).toBeUndefined();
+  });
+
+  it('mealie_search_recipes explains an unknown kitchen tool', async () => {
+    const result = await client.callTool({ name: 'mealie_search_recipes', arguments: { tools: ['mixer'] } });
+    expect(toolText(result)).toBe('The tool "mixer" was not found. Close matches: "Mixeur". See mealie_list_tools.');
   });
 
   it('mealie_get_recipe returns the structured view', async () => {
