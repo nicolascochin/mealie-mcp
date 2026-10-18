@@ -5,6 +5,8 @@ export interface Config {
   mealieUrl: string;
   port: number;
   logLevel: LogLevel;
+  /** Number of reverse proxies in front of the server whose X-Forwarded-For is trusted. */
+  trustProxy: number;
 }
 
 export class ConfigError extends Error {
@@ -19,8 +21,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const mealieUrl = parseMealieUrl(env.MEALIE_URL, problems);
   const port = parsePort(env.PORT, problems);
   const logLevel = parseLogLevel(env.LOG_LEVEL, problems);
+  const trustProxy = parseTrustProxy(env.TRUST_PROXY, problems);
   if (problems.length > 0 || mealieUrl === undefined) throw new ConfigError(problems);
-  return { mealieUrl, port, logLevel };
+  return { mealieUrl, port, logLevel, trustProxy };
 }
 
 function parseMealieUrl(value: string | undefined, problems: string[]): string | undefined {
@@ -64,4 +67,14 @@ function parseLogLevel(value: string | undefined, problems: string[]): LogLevel 
     return 'info';
   }
   return level;
+}
+
+function parseTrustProxy(value: string | undefined, problems: string[]): number {
+  if (value === undefined || value === '') return 0;
+  const hops = Number(value);
+  if (!Number.isInteger(hops) || hops < 0 || hops > 10) {
+    problems.push(`TRUST_PROXY must be the number of trusted reverse proxies, from 0 to 10, got: ${value}`);
+    return 0;
+  }
+  return hops;
 }

@@ -13,7 +13,7 @@ function problemsOf(env: NodeJS.ProcessEnv): string[] {
 
 describe('loadConfig', () => {
   it('applies defaults when only MEALIE_URL is set', () => {
-    expect(loadConfig({ MEALIE_URL: 'http://mealie:9000' })).toEqual({ mealieUrl: 'http://mealie:9000', port: 8080, logLevel: 'info' });
+    expect(loadConfig({ MEALIE_URL: 'http://mealie:9000' })).toEqual({ mealieUrl: 'http://mealie:9000', port: 8080, logLevel: 'info', trustProxy: 0 });
   });
 
   it('strips trailing slashes and keeps a base path', () => {
@@ -22,6 +22,11 @@ describe('loadConfig', () => {
 
   it('reads PORT and LOG_LEVEL', () => {
     expect(loadConfig({ MEALIE_URL: 'http://mealie:9000', PORT: '3000', LOG_LEVEL: 'DEBUG' })).toMatchObject({ port: 3000, logLevel: 'debug' });
+  });
+
+  it('reads TRUST_PROXY as a hop count', () => {
+    expect(loadConfig({ MEALIE_URL: 'http://mealie:9000', TRUST_PROXY: '1' }).trustProxy).toBe(1);
+    expect(problemsOf({ MEALIE_URL: 'http://mealie:9000', TRUST_PROXY: 'true' })).toEqual([expect.stringContaining('TRUST_PROXY')]);
   });
 
   it('requires MEALIE_URL', () => {
