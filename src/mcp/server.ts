@@ -7,6 +7,7 @@ import { registerEditIngredients } from './tools/edit-ingredients.js';
 import { registerEditSteps } from './tools/edit-steps.js';
 import { registerRecipeLifecycleTools } from './tools/recipe-lifecycle.js';
 import { registerRecipeTools } from './tools/recipes.js';
+import { registerShoppingTools } from './tools/shopping.js';
 import { registerWhoami } from './tools/whoami.js';
 
 export const SERVER_NAME = 'mealie-mcp';
@@ -36,5 +37,6 @@ export function createMcpServer(deps: ToolDeps): McpServer {
   registerEditIngredients(server, deps);
   registerEditSteps(server, deps);
   registerRecipeLifecycleTools(server, deps);
+  registerShoppingTools(server, deps);
   return server;
 }

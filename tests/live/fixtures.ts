@@ -71,6 +71,7 @@ export interface RecipeFixture {
   name: string;
   tags?: string[];
   categories?: string[];
+  servings?: number;
   prepTime?: string;
   totalTime?: string;
   notes?: Array<{ title: string; text: string }>;
@@ -117,6 +118,7 @@ export const RECIPES: RecipeFixture[] = [
   },
   {
     name: 'Crêpes',
+    servings: 4,
     tags: ['Rapide', 'Végétarien'],
     categories: ['Dessert'],
     totalTime: '30 min',
