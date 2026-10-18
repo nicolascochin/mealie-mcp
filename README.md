@@ -4,6 +4,8 @@ MCP server to drive [Mealie](https://github.com/mealie-recipes/mealie) from Clau
 
 Each person connects with their own Mealie API token, passed in the connector's `Authorization` header. The server stores nothing.
 
+Targets Mealie v3. Tested against **Mealie v3.29.0**: the integration tests move to each new Mealie release as soon as it passes them.
+
 > Work in progress.
 
 ## Tools
@@ -70,7 +72,7 @@ then choose the "Streamable HTTP" transport and the URL `http://localhost:8080/m
 Each `vX.Y.Z` tag publishes `ghcr.io/nicolascochin/mealie-mcp:X.Y.Z` (and `:X.Y`) for amd64 and arm64. The image runs as a non-root user and declares a `HEALTHCHECK` on `/healthz`.
 
 ```sh
-docker run -d -p 8080:8080 -e MEALIE_URL=http://mealie:9000 ghcr.io/nicolascochin/mealie-mcp:0.1.0
+docker run -d -p 8080:8080 -e MEALIE_URL=http://mealie:9000 ghcr.io/nicolascochin/mealie-mcp:0.2.0
 ```
 
 ## Environment variables
