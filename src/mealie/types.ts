@@ -9,6 +9,13 @@ export interface MealieUser {
   household?: string | null;
 }
 
+/** The connected user's rating and favorite flag for one recipe (`GET /api/users/self/ratings`). */
+export interface MealieUserRating {
+  recipeId: string;
+  rating?: number | null;
+  isFavorite?: boolean | null;
+}
+
 /** Mealie's paginated list envelope. */
 export interface Paginated<T> {
   page: number;
