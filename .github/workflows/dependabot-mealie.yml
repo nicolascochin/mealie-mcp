@@ -1,0 +1,32 @@
+name: dependabot-mealie
+
+# Merges Dependabot's updates of the Mealie version used by the integration tests, once the whole
+# ci workflow passed on them. Runs from main with write access, so it never checks out or runs the
+# pull request's code, and event values only reach the shell through environment variables.
+on:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  merge:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.actor.login == 'dependabot[bot]' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      startsWith(github.event.workflow_run.head_branch, 'dependabot/docker/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Squash merge the commit the CI tested
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          BRANCH: ${{ github.event.workflow_run.head_branch }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: gh pr merge "$BRANCH" --squash --match-head-commit "$SHA"
