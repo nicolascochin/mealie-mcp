@@ -69,7 +69,7 @@ then choose the "Streamable HTTP" transport and the URL `http://localhost:8080/m
 
 ## Docker image
 
-Each `vX.Y.Z` tag publishes `ghcr.io/nicolascochin/mealie-mcp:X.Y.Z` (and `:X.Y`) for amd64 and arm64. The image runs as a non-root user and declares a `HEALTHCHECK` on `/healthz`.
+Each release publishes `ghcr.io/nicolascochin/mealie-mcp:X.Y.Z` (and `:X.Y`, `:latest`) for amd64 and arm64: merging a version bump of `package.json` into main tags it `vX.Y.Z` and publishes its notes from [CHANGELOG.md](CHANGELOG.md). The image runs as a non-root user and declares a `HEALTHCHECK` on `/healthz`.
 
 ```sh
 docker run -d -p 8080:8080 -e MEALIE_URL=http://mealie:9000 ghcr.io/nicolascochin/mealie-mcp:0.2.0

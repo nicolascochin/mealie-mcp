@@ -3,6 +3,20 @@ import { describe, expect, it } from 'vitest';
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
+describe('release workflow', () => {
+  const workflow = read('.github/workflows/release.yml');
+
+  it('only releases from main once its whole CI passed', () => {
+    expect(workflow).toMatch(/workflow_run:\n\s+workflows: \[ci\]\n\s+types: \[completed\]\n\s+branches: \[main\]/);
+    expect(workflow).toContain("github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'");
+    expect(workflow).toContain('ref: ${{ github.event.workflow_run.head_sha }}');
+  });
+
+  it('passes event values to the shell through environment variables only', () => {
+    expect(workflow.split('\n').filter((line) => line.includes('run:') && line.includes('${{'))).toEqual([]);
+  });
+});
+
 describe('dependabot-mealie workflow', () => {
   const workflow = read('.github/workflows/dependabot-mealie.yml');
 
