@@ -19,7 +19,7 @@ Chaque personne se connecte avec son propre token API Mealie, passé dans l'en-t
 | `mealie_update_food`, `mealie_update_unit` | Renomme, change pluriel, abréviations ou rayon, ajoute ou retire des alias ; ne touche qu'aux champs fournis |
 | `mealie_merge_foods`, `mealie_merge_units` | Fusionne un doublon dans l'entrée qui reste : recettes et listes de courses pointent ensuite vers elle, et ses noms deviennent des alias |
 | `mealie_search_recipes` | Recherche par texte, tags, catégories, ustensiles ou aliments (par leur nom), ou parmi les favoris, avec tri et pagination |
-| `mealie_get_recipe` | Recette complète : ingrédients numérotés (quantité, unité, aliment, note, section), étapes avec les numéros de leurs ingrédients, notes, note et favori de la personne ; signale les ingrédients en texte libre |
+| `mealie_get_recipe` | Recette complète : ingrédients numérotés (quantité, unité, aliment, note, section), étapes avec les numéros de leurs ingrédients, notes, note et favori de la personne, présence d'une photo ; signale les ingrédients en texte libre |
 | `mealie_set_favorite`, `mealie_rate_recipe` | Ajoute ou retire un favori ; note une recette de 0,5 à 5 étoiles (0 retire la note), pour la personne connectée |
 | `mealie_suggest_recipes` | « Que puis-je faire avec… » : recettes qui utilisent ces aliments, avec ce qui manque |
 | `mealie_edit_ingredients` | Ajoute, modifie, déplace ou supprime des ingrédients en une écriture, sans jamais les passer en texte libre ; structure les ingrédients importés en texte libre |
@@ -28,6 +28,7 @@ Chaque personne se connecte avec son propre token API Mealie, passé dans l'en-t
 | `mealie_create_recipe` | Crée une recette avec ingrédients structurés, étapes liées et métadonnées |
 | `mealie_update_recipe` | Modifie description, temps, portions, rendement, tags, catégories, ustensiles, notes ou source, sans toucher aux ingrédients ni aux étapes |
 | `mealie_import_recipe_from_url` | Fait importer une page web par Mealie ; indique les ingrédients restés en texte libre |
+| `mealie_set_recipe_image` | Fait télécharger par Mealie une image depuis une URL et en fait la photo de la recette |
 | `mealie_duplicate_recipe`, `mealie_mark_recipe_made` | Copie une recette ; note qu'elle a été cuisinée |
 | `mealie_delete_recipe` | Supprime une recette (le client demande confirmation) |
 | `mealie_list_shopping_lists`, `mealie_get_shopping_list` | Listes de courses ; articles numérotés, regroupés par rayon, non cochés par défaut |
