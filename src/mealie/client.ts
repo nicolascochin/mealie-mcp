@@ -16,8 +16,8 @@ export interface MealieClientOptions {
 
 type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
-/** Query string values; `undefined` entries are left out. */
-export type Query = Record<string, string | number | boolean | undefined>;
+/** Query string values; `undefined` entries are left out, arrays repeat the key (`tags=a&tags=b`). */
+export type Query = Record<string, string | number | boolean | readonly string[] | undefined>;
 
 /** Calls the Mealie API on behalf of one user. Built per MCP request, never shared between users. */
 export class MealieClient {
@@ -88,7 +88,8 @@ function queryString(query: Query | undefined): string {
   if (!query) return '';
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(query)) {
-    if (value !== undefined) params.set(key, String(value));
+    if (Array.isArray(value)) for (const item of value) params.append(key, item);
+    else if (value !== undefined) params.set(key, String(value));
   }
   const text = params.toString();
   return text ? `?${text}` : '';

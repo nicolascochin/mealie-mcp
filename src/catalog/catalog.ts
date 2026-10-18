@@ -1,6 +1,6 @@
 import type { MealieClient } from '../mealie/client.js';
 import { api } from '../mealie/path.js';
-import type { MealieFood, MealieUnit, Paginated } from '../mealie/types.js';
+import type { MealieFood, MealieOrganizer, MealieUnit, Paginated } from '../mealie/types.js';
 import { resolveName, type NameVariant, type Resolution } from './resolve.js';
 
 /** Every page at once: Mealie returns the whole list for perPage=-1. */
@@ -30,6 +30,20 @@ export async function listFoods(mealie: MealieClient): Promise<MealieFood[]> {
 
 export async function listUnits(mealie: MealieClient): Promise<MealieUnit[]> {
   return (await mealie.get<Paginated<MealieUnit>>(api`/api/units`, ALL)).items;
+}
+
+export type OrganizerKind = 'tags' | 'categories';
+
+export function organizerVariants(organizer: MealieOrganizer): NameVariant[] {
+  return [
+    { value: organizer.name, rank: 0 },
+    { value: organizer.slug, rank: 1 },
+  ];
+}
+
+export async function listOrganizers(mealie: MealieClient, kind: OrganizerKind): Promise<MealieOrganizer[]> {
+  const path = kind === 'tags' ? api`/api/organizers/tags` : api`/api/organizers/categories`;
+  return (await mealie.get<Paginated<MealieOrganizer>>(path, ALL)).items;
 }
 
 export async function resolveFood(mealie: MealieClient, name: string): Promise<Resolution<MealieFood>> {
