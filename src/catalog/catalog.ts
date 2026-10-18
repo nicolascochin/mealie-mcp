@@ -6,7 +6,7 @@ import { resolveName, type NameVariant, type Resolution } from './resolve.js';
 /** Every page at once: Mealie returns the whole list for perPage=-1. */
 const ALL = { page: 1, perPage: -1 } as const;
 
-const aliasNames = (aliases: Array<{ name: string }> | null | undefined) => (aliases ?? []).map((alias) => alias.name);
+export const aliasNames = (aliases: Array<{ name: string }> | null | undefined) => (aliases ?? []).map((alias) => alias.name);
 
 export function foodVariants(food: MealieFood): NameVariant[] {
   return [
@@ -73,6 +73,24 @@ export function unitView(unit: MealieUnit) {
     ...(unit.pluralAbbreviation && unit.pluralAbbreviation !== unit.abbreviation ? { pluralAbbreviation: unit.pluralAbbreviation } : {}),
     ...(aliases.length > 0 ? { aliases } : {}),
   };
+}
+
+/**
+ * Why a name did not resolve to one entry, for the model. `canCreate` adds how to create the entry
+ * where the calling tool allows it.
+ */
+export function describeResolutionFailure<T extends { name: string }>(
+  kind: 'food' | 'unit',
+  name: string,
+  resolution: Exclude<Resolution<T>, { status: 'found' }>,
+  canCreate: boolean
+): string {
+  if (resolution.status === 'ambiguous') {
+    return `The ${kind} "${name}" is ambiguous: ${resolution.candidates.map((c) => `"${c.name}"`).join(', ')}. Use one of these exact names.`;
+  }
+  const close = resolution.suggestions.length ? ` Close matches: ${resolution.suggestions.map((c) => `"${c.name}"`).join(', ')}.` : '';
+  const create = canCreate ? ` Set createMissing: true to create it, or use mealie_create_${kind}.` : '';
+  return `The ${kind} "${name}" was not found.${close}${create}`;
 }
 
 /** A resolution as the model sees it. */

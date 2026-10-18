@@ -15,6 +15,8 @@ Chaque personne se connecte avec son propre token API Mealie, passé dans l'en-t
 | `mealie_search_units` | Idem pour les unités, abréviations comprises |
 | `mealie_list_tags`, `mealie_list_categories` | Tags et catégories de recettes |
 | `mealie_create_food`, `mealie_create_unit` | Ajoute un aliment ou une unité ; refuse un nom déjà utilisé |
+| `mealie_update_food`, `mealie_update_unit` | Renomme, change pluriel et abréviations, ajoute ou retire des alias ; ne touche qu'aux champs fournis |
+| `mealie_merge_foods`, `mealie_merge_units` | Fusionne un doublon dans l'entrée qui reste : recettes et listes de courses pointent ensuite vers elle, et ses noms deviennent des alias |
 | `mealie_search_recipes` | Recherche par texte, tags, catégories ou aliments (par leur nom), avec tri et pagination |
 | `mealie_get_recipe` | Recette complète : ingrédients numérotés (quantité, unité, aliment, note, section), étapes avec les numéros de leurs ingrédients, notes ; signale les ingrédients en texte libre |
 | `mealie_suggest_recipes` | « Que puis-je faire avec… » : recettes qui utilisent ces aliments, avec ce qui manque |
