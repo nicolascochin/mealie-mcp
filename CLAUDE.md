@@ -47,6 +47,7 @@ npm run build                                  # compile dans dist/
 ## Workflow
 
 - Une branche et une PR par ticket Kaneo : `ccmm-<n>-<sujet>`.
+- Dès que la CI est verte, la PR est fusionnée en squash merge, sans attendre de validation. Ensuite on passe le ticket en « Done » dans Kaneo.
 - La CI (`.github/workflows/ci.yml`) lance typecheck, tests et build sur chaque PR.
 - La CI installe avec `npm ci` : `package-lock.json` est committé et doit être à jour. Après une modification de `package.json`, lancer `npm install` et committer le lockfile dans la même PR.
 - Environnement cloud : le hook SessionStart (`.claude/settings.json`, `.claude/hooks/session-start.sh`) installe dans `/opt` la version de Node lue dans `.node-version`, l'ajoute au `PATH`, puis lance `npm ci` (ou `npm install` sans lockfile). Il saute l'installation si `package.json`, `package-lock.json` et la version de Node n'ont pas changé. Hors du cloud, il ne fait rien.
