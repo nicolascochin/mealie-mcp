@@ -76,6 +76,8 @@ export interface MealieRecipeSummary {
   tags?: MealieOrganizer[] | null;
   recipeCategory?: MealieOrganizer[] | null;
   rating?: number | null;
+  /** Cache key of the recipe image; empty when the recipe has none. */
+  image?: string | null;
 }
 
 export interface MealieIngredient {

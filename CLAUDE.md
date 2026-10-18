@@ -54,7 +54,7 @@ npm run build                                  # compile dans dist/
 - Les tags et catégories reviennent dans l'ordre de Mealie, pas dans l'ordre envoyé.
 - La date « cuisinée le » est stockée par foyer (`GET /api/households/self/recipes/{slug}`), pas sur la recette.
 - Favoris et notes sont stockés par utilisateur ; le `rating` d'une recette est la moyenne des notes non nulles de tous les utilisateurs.
-- Le Mealie de test ne peut pas joindre de serveur local (protection contre les requêtes vers le réseau privé) : un import d'URL réussi ne se teste qu'avec un Mealie simulé.
+- Le Mealie de test ne peut pas joindre de serveur local (protection contre les requêtes vers le réseau privé) : un import d'URL ou une image de recette réussis ne se testent qu'avec un Mealie simulé.
 
 ## Conventions
 

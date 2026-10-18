@@ -89,6 +89,7 @@ export function recipeView(recipe: MealieRecipe, mine?: MealieUserRating) {
     rating: recipe.rating ? recipe.rating : undefined,
     myRating: mine?.rating ? mine.rating : undefined,
     favorite: mine?.isFavorite ? true : undefined,
+    hasImage: recipe.image ? true : undefined,
     source: recipe.orgURL,
     ingredients: ingredients.map((ingredient, i) => ingredientView(ingredient, i + 1)),
     steps,

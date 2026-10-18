@@ -151,6 +151,30 @@ export function registerRecipeLifecycleTools(server: McpServer, { mealie, logger
   );
 
   server.registerTool(
+    'mealie_set_recipe_image',
+    {
+      title: 'Set the image of a recipe',
+      description:
+        'Have Mealie download an image from a URL and make it the photo of a recipe, replacing the current one. The URL must point to the image itself (JPEG, PNG, WebP…), not to a web page.',
+      inputSchema: z.object({
+        slug,
+        url: z.url({ protocol: /^https?$/ }).max(2000).describe('Address of the image file'),
+      }),
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+    },
+    ({ slug: recipe, url }) =>
+      runTool(
+        logger,
+        'mealie_set_recipe_image',
+        async () => {
+          await mealie.post(api`/api/recipes/${recipe}/image`, { url });
+          return { slug: recipe, hasImage: true };
+        },
+        NOT_FOUND
+      )
+  );
+
+  server.registerTool(
     'mealie_duplicate_recipe',
     {
       title: 'Duplicate a recipe',

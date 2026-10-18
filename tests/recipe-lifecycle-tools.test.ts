@@ -64,6 +64,14 @@ beforeEach(async () => {
       await record(request);
       return HttpResponse.json('quiche-lorraine', { status: 201 });
     }),
+    http.post(mealieUrl('/api/recipes/:slug/image'), async ({ request, params }) => {
+      await record(request);
+      if (params.slug === 'nope') return HttpResponse.json({ detail: 'Recipe not found' }, { status: 404 });
+      const { url } = calls.at(-1)!.body as { url: string };
+      return url.endsWith('.html')
+        ? HttpResponse.json({ detail: { message: 'Url is not an image' } }, { status: 400 })
+        : HttpResponse.json({ image: 'k3y' });
+    }),
     http.post(mealieUrl('/api/recipes/:slug/duplicate'), async ({ request }) => {
       await record(request);
       return HttpResponse.json({ ...quiche(), name: 'Quiche (copie)', slug: 'quiche-copie' });
@@ -102,6 +110,7 @@ describe('recipe lifecycle tools', () => {
       mealie_create_recipe: false,
       mealie_update_recipe: true,
       mealie_import_recipe_from_url: false,
+      mealie_set_recipe_image: false,
       mealie_duplicate_recipe: false,
       mealie_mark_recipe_made: false,
       mealie_delete_recipe: true,
@@ -222,6 +231,22 @@ describe('recipe lifecycle tools', () => {
     const result = await client.callTool({ name: 'mealie_import_recipe_from_url', arguments: { url: 'file:///etc/passwd' } });
     expect(result.isError).toBe(true);
     expect(writes()).toEqual([]);
+  });
+
+  it('mealie_set_recipe_image has Mealie download the image', async () => {
+    const url = 'https://example.com/quiche.jpg';
+    expect(await callJson(client, 'mealie_set_recipe_image', { slug: 'quiche-lorraine', url })).toEqual({ slug: 'quiche-lorraine', hasImage: true });
+    expect(writes()).toEqual([{ method: 'POST', path: '/api/recipes/quiche-lorraine/image', body: { url } }]);
+  });
+
+  it("mealie_set_recipe_image explains Mealie's refusals and refuses anything but http(s)", async () => {
+    const page = await client.callTool({ name: 'mealie_set_recipe_image', arguments: { slug: 'quiche-lorraine', url: 'https://example.com/quiche.html' } });
+    expect(toolText(page)).toBe('Mealie rejected the request (HTTP 400). Mealie says: Url is not an image');
+    const unknown = await client.callTool({ name: 'mealie_set_recipe_image', arguments: { slug: 'nope', url: 'https://example.com/a.jpg' } });
+    expect(toolText(unknown)).toBe('Not found in Mealie. Use mealie_search_recipes to find the recipe slug.');
+    const local = await client.callTool({ name: 'mealie_set_recipe_image', arguments: { slug: 'quiche-lorraine', url: 'file:///etc/passwd' } });
+    expect(local.isError).toBe(true);
+    expect(writes()).toHaveLength(2);
   });
 
   it('mealie_duplicate_recipe returns the copy', async () => {

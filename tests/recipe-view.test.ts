@@ -3,6 +3,10 @@ import { recipeView, summaryView } from '../src/recipes/view.js';
 import { quiche } from './helpers/recipes.js';
 
 describe('recipeView', () => {
+  it('leaves out hasImage when the recipe has no image', () => {
+    expect(recipeView({ ...quiche(), image: null })).not.toHaveProperty('hasImage');
+  });
+
   it('numbers ingredients and keeps only what is set', () => {
     expect(recipeView(quiche())).toEqual({
       name: 'Quiche lorraine',
@@ -12,6 +16,7 @@ describe('recipeView', () => {
       prepTime: '20 min',
       tags: ['Classique'],
       categories: ['Plat'],
+      hasImage: true,
       source: 'https://example.com/quiche',
       ingredients: [
         { n: 1, section: 'Pâte', quantity: 250, unit: 'gramme', food: 'farine', display: '250 grammes farine' },
