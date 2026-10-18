@@ -1,0 +1,65 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      # Write access is only used to commit a regenerated package-lock.json back to a PR branch.
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # On a PR, check out the branch itself (not the merge commit) so a regenerated
+          # package-lock.json can be pushed back to it.
+          ref: ${{ github.head_ref || github.ref }}
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+
+      # `npm ci` when package-lock.json is in sync with package.json. Otherwise `npm install`
+      # regenerates it: some sessions that work on this repo cannot reach the npm registry,
+      # so the lockfile is maintained here.
+      - name: Install dependencies
+        id: install
+        run: |
+          if [ -f package-lock.json ] && npm ci --no-audit --no-fund; then
+            echo "regenerated=false" >> "$GITHUB_OUTPUT"
+          else
+            npm install --no-audit --no-fund
+            echo "regenerated=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Typecheck
+        run: npx tsc --noEmit --pretty false
+
+      - name: Unit tests
+        run: npx vitest run --reporter=default --reporter=github-actions
+
+      - name: Build
+        run: npm run build
+
+      - name: Commit regenerated package-lock.json
+        if: >-
+          steps.install.outputs.regenerated == 'true'
+          && github.event_name == 'pull_request'
+          && github.event.pull_request.head.repo.full_name == github.repository
+        run: |
+          if git diff --quiet -- package-lock.json && git ls-files --error-unmatch package-lock.json >/dev/null 2>&1; then
+            echo "package-lock.json unchanged"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "chore: regenerate package-lock.json"
+          git push origin "HEAD:${{ github.head_ref }}"
