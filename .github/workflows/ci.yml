@@ -56,3 +56,29 @@ jobs:
       - name: Mealie logs
         if: failure()
         run: docker compose -f docker-compose.test.yml -p mealie-mcp-test logs --no-color || true
+
+  docker:
+    # The production image builds, starts healthy as a non-root user and guards /mcp.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build the image
+        run: docker build -t mealie-mcp:ci .
+
+      - name: Smoke test
+        run: |
+          docker run -d --name mcp -p 127.0.0.1:8080:8080 -e MEALIE_URL=http://mealie.invalid:9000 mealie-mcp:ci
+          for i in $(seq 1 30); do
+            [ "$(docker inspect -f '{{.State.Health.Status}}' mcp)" = healthy ] && break
+            sleep 2
+          done
+          test "$(docker inspect -f '{{.State.Health.Status}}' mcp)" = healthy
+          test "$(docker exec mcp id -u)" != 0
+          curl -fsS http://127.0.0.1:8080/healthz
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:8080/mcp)" = 401
+
+      - name: Container logs
+        if: failure()
+        run: docker logs mcp || true
