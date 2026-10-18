@@ -18,7 +18,8 @@ Le travail est suivi dans Kaneo, projet « Code cloud - mealie mcp » (tickets C
 ```sh
 npm ci
 MEALIE_URL=http://localhost:9000 npm run dev   # serveur sur http://localhost:8080/mcp
-npm test                                       # tests unitaires et de bout en bout
+npm test                                       # tests unitaires et de bout en bout (Mealie simulé)
+npm run test:live                              # tests d'intégration contre un vrai Mealie (Docker requis)
 npm run typecheck
 npm run build                                  # compile dans dist/
 ```
@@ -35,6 +36,7 @@ npm run build                                  # compile dans dist/
 - `src/mcp/server.ts` : fabrique du serveur MCP (une par requête, avec le client Mealie de l'utilisateur) et instructions envoyées au modèle
 - `src/mcp/tools/` : un fichier par outil ; `result.ts` (`runTool`) renvoie le JSON compact ou un message d'erreur actionnable
 - `tests/` : tests vitest ; `tests/helpers/app.ts` démarre le vrai serveur sur un port aléatoire ; `tests/helpers/mealie.ts` simule Mealie avec msw (`mealie.use(...)` pour surcharger une route dans un test)
+- `tests/live/` : tests d'intégration (`vitest.live.config.ts`), exclus de `npm test`. `run.ts` démarre le Mealie jetable de `docker-compose.test.yml` (version épinglée, SQLite en tmpfs), attend qu'il réponde, lance `seed.ts`, exécute la suite puis supprime le conteneur (`KEEP_MEALIE=1` le laisse tourner). `fixtures.ts` : utilisateur non admin, aliments et unités en français avec pluriels et alias, recettes avec sections et étapes liées aux ingrédients. `helpers.ts` : `liveSeed()` et `readRawRecipe(slug)` pour comparer le JSON brut d'une recette avant et après un appel d'outil
 
 ## Conventions
 
@@ -53,6 +55,6 @@ npm run build                                  # compile dans dist/
 - Une branche et une PR par ticket Kaneo : `ccmm-<n>-<sujet>`.
 - Dès que la CI est verte, la PR est fusionnée en squash merge, sans attendre de validation. Ensuite on passe le ticket en « Done » dans Kaneo.
 - Une fois la PR fusionnée, on enchaîne directement sur le ticket suivant (ordre des numéros, en respectant les relations « bloque »).
-- La CI (`.github/workflows/ci.yml`) lance typecheck, tests et build sur chaque PR.
+- La CI (`.github/workflows/ci.yml`) lance typecheck, tests et build sur chaque PR, et `npm run test:live` dans un job séparé (`live`). L'environnement cloud ne peut pas télécharger l'image Mealie : les tests d'intégration se vérifient dans la CI.
 - La CI installe avec `npm ci` : `package-lock.json` est committé et doit être à jour. Après une modification de `package.json`, lancer `npm install` et committer le lockfile dans la même PR.
 - Environnement cloud : le hook SessionStart (`.claude/settings.json`, `.claude/hooks/session-start.sh`) installe dans `/opt` la version de Node lue dans `.node-version`, l'ajoute au `PATH`, puis lance `npm ci` (ou `npm install` sans lockfile). Il saute l'installation si `package.json`, `package-lock.json` et la version de Node n'ont pas changé. Hors du cloud, il ne fait rien.
