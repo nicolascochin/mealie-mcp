@@ -15,6 +15,7 @@ const FOODS = [
 const UNITS = [{ id: 'u-gramme', name: 'gramme', pluralName: 'grammes', abbreviation: 'g', aliases: [] }];
 const TAGS = [{ id: 't1', name: 'Rapide', slug: 'rapide' }];
 const CATEGORIES = [{ id: 'c1', name: 'Dessert', slug: 'dessert' }];
+const TOOLS = [{ id: 'k1', name: 'Poêle à crêpes', slug: 'poele-a-crepes', householdsWithTool: ['maison'] }];
 
 interface Call {
   method: string;
@@ -44,6 +45,12 @@ beforeEach(async () => {
     http.get(mealieUrl('/api/units'), () => HttpResponse.json(page(UNITS))),
     http.get(mealieUrl('/api/organizers/tags'), () => HttpResponse.json(page(TAGS))),
     http.get(mealieUrl('/api/organizers/categories'), () => HttpResponse.json(page(CATEGORIES))),
+    http.get(mealieUrl('/api/organizers/tools'), () => HttpResponse.json(page(TOOLS))),
+    http.post(mealieUrl('/api/organizers/tools'), async ({ request }) => {
+      await record(request.clone());
+      const { name } = (await request.json()) as { name: string };
+      return HttpResponse.json({ id: `k-${name}`, name, slug: name.toLowerCase() }, { status: 201 });
+    }),
     http.post(mealieUrl('/api/organizers/tags'), async ({ request }) => {
       await record(request.clone());
       const { name } = (await request.json()) as { name: string };
@@ -106,6 +113,7 @@ describe('recipe lifecycle tools', () => {
       name: 'Crêpes',
       totalTime: '30 min',
       tags: ['rapide'],
+      tools: ['poele a crepes'],
       ingredients: [
         { quantity: 250, unit: 'g', food: 'farine' },
         { quantity: 4, food: 'oeufs', section: 'Liquides' },
@@ -118,6 +126,7 @@ describe('recipe lifecycle tools', () => {
     const patch = writes()[1]!.body as Record<string, any>;
     expect(patch.totalTime).toBe('30 min');
     expect(patch.tags).toEqual([{ id: 't1', name: 'Rapide', slug: 'rapide' }]);
+    expect(patch.tools).toEqual([{ id: 'k1', name: 'Poêle à crêpes', slug: 'poele-a-crepes' }]);
     expect(patch.settings).toEqual({ public: true, disableAmount: false });
     expect(patch.recipeIngredient).toMatchObject([
       { quantity: 250, unit: { id: 'u-gramme' }, food: { id: 'f-farine' }, note: '', title: null },
@@ -146,6 +155,15 @@ describe('recipe lifecycle tools', () => {
   it('mealie_create_recipe creates missing tags only with createMissing', async () => {
     await callJson(client, 'mealie_create_recipe', { name: 'Crêpes', tags: ['Bretagne'], createMissing: true });
     expect(writes()[0]).toEqual({ method: 'POST', path: '/api/organizers/tags', body: { name: 'Bretagne' } });
+  });
+
+  it('mealie_create_recipe refuses an unknown kitchen tool, and creates it with createMissing', async () => {
+    const unknown = await client.callTool({ name: 'mealie_create_recipe', arguments: { name: 'Crêpes', tools: ['Billig'] } });
+    expect(toolText(unknown)).toBe('The tool "Billig" was not found. Set createMissing: true to create it, or see mealie_list_tools.');
+    expect(writes()).toEqual([]);
+    await callJson(client, 'mealie_create_recipe', { name: 'Crêpes', tools: ['Billig'], createMissing: true });
+    expect(writes()[0]).toEqual({ method: 'POST', path: '/api/organizers/tools', body: { name: 'Billig' } });
+    expect((writes()[2]!.body as Record<string, unknown>).tools).toEqual([{ id: 'k-Billig', name: 'Billig', slug: 'billig' }]);
   });
 
   it('mealie_create_recipe deletes the empty recipe when the second write fails', async () => {
@@ -179,6 +197,12 @@ describe('recipe lifecycle tools', () => {
     ]);
     expect(result).not.toHaveProperty('ingredients');
     expect(result).toMatchObject({ description: 'La vraie.', servings: 4, categories: ['Dessert'] });
+  });
+
+  it('mealie_update_recipe replaces the kitchen tools, and clears them with an empty list', async () => {
+    await callJson(client, 'mealie_update_recipe', { slug: 'quiche-lorraine', tools: ['Poêle à crêpes'] });
+    await callJson(client, 'mealie_update_recipe', { slug: 'quiche-lorraine', tools: [] });
+    expect(writes().map((c) => c.body)).toEqual([{ tools: [{ id: 'k1', name: 'Poêle à crêpes', slug: 'poele-a-crepes' }] }, { tools: [] }]);
   });
 
   it('mealie_update_recipe refuses an empty update', async () => {

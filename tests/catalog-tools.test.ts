@@ -61,7 +61,10 @@ beforeEach(async () => {
     http.get(mealieUrl('/api/organizers/tags'), () =>
       HttpResponse.json(page([{ id: 't2', name: 'Végétarien', slug: 'vegetarien' }, { id: 't1', name: 'Rapide', slug: 'rapide' }]))
     ),
-    http.get(mealieUrl('/api/organizers/categories'), () => HttpResponse.json(page([{ id: 'c1', name: 'Dessert', slug: 'dessert' }])))
+    http.get(mealieUrl('/api/organizers/categories'), () => HttpResponse.json(page([{ id: 'c1', name: 'Dessert', slug: 'dessert' }]))),
+    http.get(mealieUrl('/api/organizers/tools'), () =>
+      HttpResponse.json(page([{ id: 'k2', name: 'Moule à tarte', slug: 'moule-a-tarte' }, { id: 'k1', name: 'Mixeur', slug: 'mixeur' }]))
+    )
   );
   app = await startTestApp();
   client = await connectMcp(app.baseUrl, VALID_TOKEN);
@@ -75,7 +78,7 @@ describe('catalog tools', () => {
   it('declare their annotations', async () => {
     const { tools } = await client.listTools();
     const byName = new Map(tools.map((t) => [t.name, t]));
-    for (const name of ['mealie_search_foods', 'mealie_search_units', 'mealie_list_tags', 'mealie_list_categories']) {
+    for (const name of ['mealie_search_foods', 'mealie_search_units', 'mealie_list_tags', 'mealie_list_categories', 'mealie_list_tools']) {
       expect(byName.get(name)?.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false, idempotentHint: true });
     }
     for (const name of ['mealie_create_food', 'mealie_create_unit']) {
@@ -118,6 +121,7 @@ describe('catalog tools', () => {
   it('lists tags and categories by name', async () => {
     expect(await callJson(client, 'mealie_list_tags')).toEqual({ tags: ['Rapide', 'Végétarien'] });
     expect(await callJson(client, 'mealie_list_categories')).toEqual({ categories: ['Dessert'] });
+    expect(await callJson(client, 'mealie_list_tools')).toEqual({ tools: ['Mixeur', 'Moule à tarte'] });
   });
 
   it('mealie_create_food sends plural and aliases', async () => {

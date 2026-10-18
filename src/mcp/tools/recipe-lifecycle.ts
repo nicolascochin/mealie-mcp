@@ -11,7 +11,7 @@ import { runTool, ToolError } from './result.js';
 
 const NOT_FOUND = { notFound: 'Use mealie_search_recipes to find the recipe slug.' };
 const slug = z.string().trim().min(1).max(200).describe('Recipe slug');
-const createMissing = z.boolean().optional().describe('Create foods, units, tags and categories that do not exist yet (default false)');
+const createMissing = z.boolean().optional().describe('Create foods, units, tags, categories and tools that do not exist yet (default false)');
 
 /** Awaits both; if either fails with a ToolError, throws one ToolError with every message. */
 async function collectProblems<A, B>(a: Promise<A>, b: Promise<B>): Promise<[A, B]> {
@@ -46,7 +46,7 @@ export function registerRecipeLifecycleTools(server: McpServer, { mealie, logger
       title: 'Create a recipe',
       description: [
         'Create a recipe with structured ingredients (quantity, unit, food, note, section; foods and units by name) and steps linked to ingredients by number.',
-        'Unknown foods, units, tags or categories fail with close matches unless createMissing is true. No recipe is created if anything is invalid.',
+        'Unknown foods, units, tags, categories or tools fail with close matches unless createMissing is true. No recipe is created if anything is invalid.',
       ].join(' '),
       inputSchema: z.object({
         name: z.string().trim().min(1).max(200).describe('Recipe name'),
@@ -105,7 +105,7 @@ export function registerRecipeLifecycleTools(server: McpServer, { mealie, logger
     {
       title: 'Update recipe details',
       description:
-        'Change the description, times, servings, yield, tags, categories, notes or source of a recipe. Only the fields given change; ingredients and steps are never touched (use mealie_edit_ingredients and mealie_edit_steps). Tags, categories and notes replace the current lists.',
+        'Change the description, times, servings, yield, tags, categories, kitchen tools, notes or source of a recipe. Only the fields given change; ingredients and steps are never touched (use mealie_edit_ingredients and mealie_edit_steps). Tags, categories, tools and notes replace the current lists.',
       inputSchema: z.object({ slug, ...metadataFields, createMissing }),
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
     },

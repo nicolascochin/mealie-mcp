@@ -13,18 +13,18 @@ Chaque personne se connecte avec son propre token API Mealie, passé dans l'en-t
 | `mealie_whoami` | Utilisateur connecté : nom, foyer, groupe |
 | `mealie_search_foods` | Retrouve un aliment par nom, pluriel ou alias (sans casse ni accents), ou propose des candidats |
 | `mealie_search_units` | Idem pour les unités, abréviations comprises |
-| `mealie_list_tags`, `mealie_list_categories` | Tags et catégories de recettes |
+| `mealie_list_tags`, `mealie_list_categories`, `mealie_list_tools` | Tags, catégories et ustensiles de recettes |
 | `mealie_create_food`, `mealie_create_unit` | Ajoute un aliment ou une unité ; refuse un nom déjà utilisé |
 | `mealie_update_food`, `mealie_update_unit` | Renomme, change pluriel et abréviations, ajoute ou retire des alias ; ne touche qu'aux champs fournis |
 | `mealie_merge_foods`, `mealie_merge_units` | Fusionne un doublon dans l'entrée qui reste : recettes et listes de courses pointent ensuite vers elle, et ses noms deviennent des alias |
-| `mealie_search_recipes` | Recherche par texte, tags, catégories ou aliments (par leur nom), avec tri et pagination |
+| `mealie_search_recipes` | Recherche par texte, tags, catégories, ustensiles ou aliments (par leur nom), avec tri et pagination |
 | `mealie_get_recipe` | Recette complète : ingrédients numérotés (quantité, unité, aliment, note, section), étapes avec les numéros de leurs ingrédients, notes ; signale les ingrédients en texte libre |
 | `mealie_suggest_recipes` | « Que puis-je faire avec… » : recettes qui utilisent ces aliments, avec ce qui manque |
 | `mealie_edit_ingredients` | Ajoute, modifie, déplace ou supprime des ingrédients en une écriture, sans jamais les passer en texte libre ; structure les ingrédients importés en texte libre |
 | `mealie_parse_ingredients` | Passe les ingrédients en texte libre au parseur de Mealie et propose quantité, unité, aliment et note, prêts pour `mealie_edit_ingredients` (n'écrit rien) |
 | `mealie_edit_steps` | Ajoute, modifie, déplace ou supprime des étapes en une écriture ; lie ou délie des ingrédients par leur numéro, sans perdre les liens existants |
 | `mealie_create_recipe` | Crée une recette avec ingrédients structurés, étapes liées et métadonnées |
-| `mealie_update_recipe` | Modifie description, temps, portions, rendement, tags, catégories, notes ou source, sans toucher aux ingrédients ni aux étapes |
+| `mealie_update_recipe` | Modifie description, temps, portions, rendement, tags, catégories, ustensiles, notes ou source, sans toucher aux ingrédients ni aux étapes |
 | `mealie_import_recipe_from_url` | Fait importer une page web par Mealie ; indique les ingrédients restés en texte libre |
 | `mealie_duplicate_recipe`, `mealie_mark_recipe_made` | Copie une recette ; note qu'elle a été cuisinée |
 | `mealie_delete_recipe` | Supprime une recette (le client demande confirmation) |

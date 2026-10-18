@@ -122,6 +122,20 @@ export function registerCatalogTools(server: McpServer, { mealie, logger }: Tool
   );
 
   server.registerTool(
+    'mealie_list_tools',
+    {
+      title: 'List kitchen tools',
+      description: 'List the kitchen tools (food processor, tart pan…) defined in Mealie, which recipes can require.',
+      annotations: READ_ONLY,
+    },
+    () =>
+      runTool(logger, 'mealie_list_tools', async () => {
+        const tools = await listOrganizers(mealie, 'tools');
+        return { tools: tools.map((tool) => tool.name).sort((a, b) => a.localeCompare(b)) };
+      })
+  );
+
+  server.registerTool(
     'mealie_create_food',
     {
       title: 'Create a food',
