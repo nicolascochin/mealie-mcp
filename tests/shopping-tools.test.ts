@@ -47,6 +47,19 @@ beforeEach(async () => {
     http.get(mealieUrl('/api/units'), () => HttpResponse.json(page(UNITS))),
     http.get(mealieUrl('/api/households/shopping/lists'), () => HttpResponse.json(page(lists))),
     http.get(mealieUrl('/api/households/shopping/lists/l1'), () => HttpResponse.json(list())),
+    http.post(mealieUrl('/api/households/shopping/lists'), async ({ request }) => {
+      await record(request.clone());
+      const { name } = (await request.json()) as { name: string };
+      return HttpResponse.json({ id: 'l9', name, listItems: [] }, { status: 201 });
+    }),
+    http.put(mealieUrl('/api/households/shopping/lists/l1'), async ({ request }) => {
+      await record(request);
+      return HttpResponse.json(list());
+    }),
+    http.delete(mealieUrl('/api/households/shopping/lists/l1'), async ({ request }) => {
+      await record(request);
+      return HttpResponse.json(list());
+    }),
     http.post(mealieUrl('/api/households/shopping/items/create-bulk'), async ({ request }) => {
       await record(request);
       return HttpResponse.json({ createdItems: [{}], updatedItems: [{}], deletedItems: [] });
@@ -83,6 +96,9 @@ describe('shopping tools', () => {
     const hints = Object.fromEntries(tools.filter((t) => t.name.includes('shopping')).map((t) => [t.name, [t.annotations?.readOnlyHint, t.annotations?.destructiveHint]]));
     expect(hints).toEqual({
       mealie_list_shopping_lists: [true, false],
+      mealie_create_shopping_list: [false, false],
+      mealie_rename_shopping_list: [false, false],
+      mealie_delete_shopping_list: [false, true],
       mealie_get_shopping_list: [true, false],
       mealie_add_shopping_items: [false, false],
       mealie_update_shopping_items: [false, false],
@@ -173,5 +189,34 @@ describe('shopping tools', () => {
   it('removes all of a recipe by default', async () => {
     await callJson(client, 'mealie_remove_recipe_from_shopping_list', { slug: 'quiche-lorraine' });
     expect(writes).toEqual([{ method: 'POST', path: '/api/households/shopping/lists/l1/recipe/r1/delete', body: { recipeDecrementQuantity: 1 } }]);
+  });
+
+  it('creates a list and refuses a name already taken', async () => {
+    expect(await callJson(client, 'mealie_create_shopping_list', { name: 'Marché' })).toEqual({ created: 'Marché' });
+    expect(writes).toEqual([{ method: 'POST', path: '/api/households/shopping/lists', body: { name: 'Marché' } }]);
+    const taken = await client.callTool({ name: 'mealie_create_shopping_list', arguments: { name: 'COURSES' } });
+    expect(toolText(taken)).toBe('A shopping list is already named "Courses".');
+    expect(writes).toHaveLength(1);
+  });
+
+  it('renames a list, sending it back with all its items', async () => {
+    await callJson(client, 'mealie_rename_shopping_list', { name: 'Courses de la semaine' });
+    expect(writes).toEqual([{ method: 'PUT', path: '/api/households/shopping/lists/l1', body: { ...list(), name: 'Courses de la semaine' } }]);
+  });
+
+  it('keeps the name when renaming to the same name with other accents', async () => {
+    await callJson(client, 'mealie_rename_shopping_list', { list: 'Courses', name: 'courses' });
+    expect(writes[0]!.body).toMatchObject({ name: 'courses' });
+  });
+
+  it('deletes a list named explicitly', async () => {
+    expect(await callJson(client, 'mealie_delete_shopping_list', { list: 'courses' })).toEqual({ deleted: 'Courses', items: 3 });
+    expect(writes).toEqual([{ method: 'DELETE', path: '/api/households/shopping/lists/l1' }]);
+  });
+
+  it('suggests creating a list when there is none', async () => {
+    lists.length = 0;
+    const result = await client.callTool({ name: 'mealie_get_shopping_list', arguments: {} });
+    expect(toolText(result)).toBe('There is no shopping list yet: create one with mealie_create_shopping_list.');
   });
 });

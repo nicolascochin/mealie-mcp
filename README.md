@@ -27,6 +27,7 @@ Chaque personne se connecte avec son propre token API Mealie, passé dans l'en-t
 | `mealie_duplicate_recipe`, `mealie_mark_recipe_made` | Copie une recette ; note qu'elle a été cuisinée |
 | `mealie_delete_recipe` | Supprime une recette (le client demande confirmation) |
 | `mealie_list_shopping_lists`, `mealie_get_shopping_list` | Listes de courses ; articles numérotés, non cochés par défaut |
+| `mealie_create_shopping_list`, `mealie_rename_shopping_list`, `mealie_delete_shopping_list` | Crée, renomme ou supprime une liste ; deux listes ne peuvent pas porter le même nom |
 | `mealie_add_shopping_items` | Ajoute des articles avec aliments et unités du catalogue, que Mealie fusionne avec les articles existants |
 | `mealie_update_shopping_items`, `mealie_remove_shopping_items` | Coche, décoche, change quantité ou note ; supprime des articles |
 | `mealie_add_recipe_to_shopping_list`, `mealie_remove_recipe_from_shopping_list` | Ajoute ou retire les ingrédients d'une recette, pour un facteur ou un nombre de portions |

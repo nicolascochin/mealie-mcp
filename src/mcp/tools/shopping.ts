@@ -4,7 +4,7 @@ import type { MealieClient } from '../../mealie/client.js';
 import { api } from '../../mealie/path.js';
 import type { MealieRecipe, MealieShoppingItem, MealieShoppingList } from '../../mealie/types.js';
 import { ingredientFields, resolveCatalogRefs } from '../../recipes/ingredients.js';
-import { findShoppingList, readShoppingList } from '../../shopping/lists.js';
+import { assertListNameFree, findShoppingList, listShoppingLists, readShoppingList } from '../../shopping/lists.js';
 import { shoppingItems, shoppingListView } from '../../shopping/view.js';
 import type { ToolDeps } from '../server.js';
 import { runTool, ToolError } from './result.js';
@@ -41,8 +41,61 @@ export function registerShoppingTools(server: McpServer, { mealie, logger }: Too
     { title: 'List shopping lists', description: 'List the shopping lists of the household.', annotations: READ_ONLY },
     () =>
       runTool(logger, 'mealie_list_shopping_lists', async () => {
-        const result = await mealie.get<{ items: Array<{ name: string }> }>(api`/api/households/shopping/lists`, { page: 1, perPage: -1 });
-        return { lists: result.items.map((l) => l.name) };
+        return { lists: (await listShoppingLists(mealie)).map((l) => l.name) };
+      })
+  );
+
+  const listName = z.string().trim().min(1).max(200);
+
+  server.registerTool(
+    'mealie_create_shopping_list',
+    {
+      title: 'Create a shopping list',
+      description: 'Create a new, empty shopping list. Refuses a name already used by another list.',
+      inputSchema: z.object({ name: listName.describe('Name of the new list, e.g. "Marché du samedi"') }),
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+    },
+    ({ name }) =>
+      runTool(logger, 'mealie_create_shopping_list', async () => {
+        assertListNameFree(await listShoppingLists(mealie), name);
+        const created = await mealie.post<{ name: string }>(api`/api/households/shopping/lists`, { name });
+        return { created: created.name };
+      })
+  );
+
+  server.registerTool(
+    'mealie_rename_shopping_list',
+    {
+      title: 'Rename a shopping list',
+      description: 'Rename a shopping list; its items and recipes stay as they are.',
+      inputSchema: z.object({ list, name: listName.describe('New name') }),
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    },
+    ({ list: current, name }) =>
+      runTool(logger, 'mealie_rename_shopping_list', async () => {
+        const { id } = await findShoppingList(mealie, current);
+        assertListNameFree(await listShoppingLists(mealie), name, id);
+        // The list goes back as Mealie sent it, items included: only its name changes.
+        const shopping = await readShoppingList(mealie, id);
+        await mealie.request('PUT', api`/api/households/shopping/lists/${id}`, { ...shopping, name });
+        return listView(mealie, id);
+      })
+  );
+
+  server.registerTool(
+    'mealie_delete_shopping_list',
+    {
+      title: 'Delete a shopping list',
+      description: 'Delete a shopping list and all its items. Confirm with the user first.',
+      inputSchema: z.object({ list: listName.describe('Name of the list to delete') }),
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+    },
+    ({ list: name }) =>
+      runTool(logger, 'mealie_delete_shopping_list', async () => {
+        const { id } = await findShoppingList(mealie, name);
+        const shopping = await readShoppingList(mealie, id);
+        await mealie.request('DELETE', api`/api/households/shopping/lists/${id}`);
+        return { deleted: shopping.name, items: shoppingItems(shopping).length };
       })
   );
 
