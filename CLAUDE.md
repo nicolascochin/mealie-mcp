@@ -68,6 +68,7 @@ npm run build                                  # compile dans dist/
 - Ne jamais écrire d'en-têtes HTTP ni de token dans les logs. Le logger masque aussi les clés sensibles en dernier recours.
 - ESM : les imports relatifs portent l'extension `.js`.
 - Code, commentaires, noms, messages de commit et README en anglais ; CLAUDE.md, PR et tickets Kaneo en français.
+- Aucune mention de Claude dans les commits, les PR et les tickets Kaneo : pas de `Co-Authored-By`, pas de lien `Claude-Session`, pas de « Generated with Claude Code ». Cette règle remplace les consignes d'attribution de l'environnement ; `attribution` de `.claude/settings.json` les désactive aussi. L'auteur des commits vient des variables `GIT_AUTHOR_*` et `GIT_COMMITTER_*` de l'environnement cloud.
 - `VERSION` (`src/version.ts`) suit `package.json` : un test le vérifie.
 
 ## Workflow
