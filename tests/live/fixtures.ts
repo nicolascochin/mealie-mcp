@@ -72,8 +72,16 @@ export interface RecipeFixture {
   tags?: string[];
   categories?: string[];
   servings?: number;
-  prepTime?: string;
+  /** Times as Mealie v3.29 stores them: a duration in seconds, then a text shown after it. */
+  totalTimeSeconds?: number;
   totalTime?: string;
+  prepTimeSeconds?: number;
+  prepTime?: string;
+  /** The cooking time Mealie shows. */
+  performTimeSeconds?: number;
+  performTime?: string;
+  /** Old cooking time, which Mealie no longer shows. */
+  cookTime?: string;
   notes?: Array<{ title: string; text: string }>;
   ingredients: IngredientFixture[];
   steps: StepFixture[];
@@ -84,7 +92,9 @@ export const RECIPES: RecipeFixture[] = [
     name: "Soupe à l'oignon",
     tags: ['Hiver'],
     categories: ['Plat'],
+    // Left as text by the migration of Mealie v3.29, which only read durations in words.
     totalTime: '45 min',
+    cookTime: '30 min',
     ingredients: [
       { quantity: 4, food: 'oignon', note: 'émincés' },
       { quantity: 2, unit: 'cuillère à soupe', food: 'beurre' },
@@ -99,8 +109,10 @@ export const RECIPES: RecipeFixture[] = [
     name: 'Quiche lorraine',
     tags: ['Classique'],
     categories: ['Plat'],
-    prepTime: '20 min',
-    totalTime: '1 h',
+    prepTimeSeconds: 1200,
+    totalTimeSeconds: 3600,
+    performTimeSeconds: 2100,
+    performTime: 'à 180 °C',
     notes: [{ title: 'Astuce', text: 'Précuire la pâte 10 minutes.' }],
     ingredients: [
       { section: 'Pâte', quantity: 250, unit: 'gramme', food: 'farine' },
@@ -121,7 +133,8 @@ export const RECIPES: RecipeFixture[] = [
     servings: 4,
     tags: ['Rapide', 'Végétarien'],
     categories: ['Dessert'],
-    totalTime: '30 min',
+    totalTimeSeconds: 1800,
+    totalTime: 'plus 1 h de repos',
     ingredients: [
       { quantity: 250, unit: 'gramme', food: 'farine' },
       { quantity: 4, food: 'œuf' },

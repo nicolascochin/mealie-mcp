@@ -5,7 +5,7 @@ import { api } from '../../mealie/path.js';
 import type { MealieIngredient, MealieInstruction, MealieRecipe } from '../../mealie/types.js';
 import { ingredientFields, newIngredient, resolveCatalogRefs } from '../../recipes/ingredients.js';
 import { metadataFields, metadataPatch } from '../../recipes/metadata.js';
-import { recipeView } from '../../recipes/view.js';
+import { recipeView, timeWarnings } from '../../recipes/view.js';
 import type { ToolDeps } from '../server.js';
 import { runTool, ToolError } from './result.js';
 
@@ -29,7 +29,8 @@ async function collectProblems<A, B>(a: Promise<A>, b: Promise<B>): Promise<[A, 
 /** The recipe without its ingredients and steps: what an update of the other fields shows. */
 function metadataView(recipe: MealieRecipe) {
   const { ingredients: _ingredients, steps: _steps, warnings: _warnings, ...rest } = recipeView(recipe);
-  return rest;
+  const warnings = timeWarnings(recipe);
+  return warnings.length ? { ...rest, warnings } : rest;
 }
 
 const ingredientInput = z.object(ingredientFields);

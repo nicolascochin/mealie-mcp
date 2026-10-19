@@ -4,7 +4,7 @@ MCP server to drive [Mealie](https://github.com/mealie-recipes/mealie) from Clau
 
 Each person connects with their own Mealie API token, passed in the connector's `Authorization` header. The server stores nothing.
 
-Targets Mealie v3. Tested against **Mealie v3.29.0**: the integration tests move to each new Mealie release as soon as it passes them.
+Targets Mealie v3; recipe durations need v3.29 or later. Tested against **Mealie v3.29.0**: the integration tests move to each new Mealie release as soon as it passes them.
 
 > Work in progress.
 
@@ -21,14 +21,14 @@ Targets Mealie v3. Tested against **Mealie v3.29.0**: the integration tests move
 | `mealie_update_food`, `mealie_update_unit` | Renames, changes the plural, abbreviations or label, adds or removes aliases; only touches the given fields |
 | `mealie_merge_foods`, `mealie_merge_units` | Merges a duplicate into the entry that stays: recipes and shopping lists then point to it, and the duplicate's names become aliases |
 | `mealie_search_recipes` | Searches by text, tags, categories, kitchen tools or foods (by name), or among favorites, with sorting and pagination |
-| `mealie_get_recipe` | Full recipe: numbered ingredients (quantity, unit, food, note, section), steps with the numbers of their ingredients, notes, the user's rating and favorite, whether it has a photo; flags free-text ingredients |
+| `mealie_get_recipe` | Full recipe: times, numbered ingredients (quantity, unit, food, note, section), steps with the numbers of their ingredients, notes, the user's rating and favorite, whether it has a photo; flags free-text ingredients and the old cooking time Mealie no longer shows |
 | `mealie_set_favorite`, `mealie_rate_recipe` | Adds or removes a favorite; rates a recipe from 0.5 to 5 stars (0 removes the rating), for the connected user |
 | `mealie_suggest_recipes` | "What can I make with…": recipes that use these foods, with what is missing |
 | `mealie_edit_ingredients` | Adds, changes, moves or removes ingredients in one write, never turning them into free text; structures free-text ingredients from imports |
 | `mealie_parse_ingredients` | Runs free-text ingredients through Mealie's parser and proposes quantity, unit, food and note, ready for `mealie_edit_ingredients` (writes nothing) |
 | `mealie_edit_steps` | Adds, changes, moves or removes steps in one write; links or unlinks ingredients by number, without losing existing links |
 | `mealie_create_recipe` | Creates a recipe with structured ingredients, linked steps and metadata |
-| `mealie_update_recipe` | Changes the description, times, servings, yield, tags, categories, kitchen tools, notes or source, without touching ingredients or steps |
+| `mealie_update_recipe` | Changes the description, times, servings, yield, tags, categories, kitchen tools, notes or source, without touching ingredients or steps; clears the old cooking time |
 | `mealie_import_recipe_from_url` | Has Mealie import a web page; reports the ingredients left as free text |
 | `mealie_set_recipe_image` | Has Mealie download an image from a URL and makes it the recipe's photo |
 | `mealie_duplicate_recipe`, `mealie_mark_recipe_made` | Copies a recipe; records that it was cooked |
@@ -43,6 +43,18 @@ Targets Mealie v3. Tested against **Mealie v3.29.0**: the integration tests move
 | `mealie_list_mealplans`, `mealie_get_todays_meals` | Meal plans between two dates (current week by default); today's meals |
 | `mealie_add_mealplan_entry`, `mealie_update_mealplan_entry`, `mealie_delete_mealplan_entry` | Plans a recipe or a note for a date and a meal; moves, changes or removes a planned meal |
 | `mealie_plan_random_meal`, `mealie_list_mealplan_rules` | Has Mealie pick a recipe for a date and a meal, following the household's rules; lists those rules (day, meal, allowed recipes, by name) |
+
+## Recipe times
+
+Since Mealie v3.29, each recipe time (total, preparation, cooking) is a duration that Mealie's interface edits in hours and minutes, followed by an optional text. The tools read and write them the same way:
+
+```json
+{ "cookTime": { "hours": 1, "minutes": 30, "text": "plus 1 night of marinating" } }
+```
+
+Leaving out both `hours` and `minutes` keeps the duration, leaving out `text` keeps the text, 0 hours and 0 minutes clear the duration, and `null` clears the whole time. `cookTime` is the cooking time Mealie shows (its `performTime`). Mealie's migration only turned times written in words ("20 minutes") into durations: abbreviations such as "15 min" or "1 h 30" stay as text until they are set again in hours and minutes.
+
+Mealie no longer shows its older `cookTime` field, and did not migrate it. When a recipe still has one, `mealie_get_recipe` returns it as `legacyCookTime` with a warning: move it to `cookTime` and clear it with `legacyCookTime: null`, in one `mealie_update_recipe` call.
 
 ## Importing a recipe from a photo
 
@@ -72,7 +84,7 @@ then choose the "Streamable HTTP" transport and the URL `http://localhost:8080/m
 Each release publishes `ghcr.io/nicolascochin/mealie-mcp:X.Y.Z` (and `:X.Y`, `:latest`) for amd64 and arm64: merging a version bump of `package.json` into main tags it `vX.Y.Z` and publishes its notes from [CHANGELOG.md](CHANGELOG.md). The image runs as a non-root user and declares a `HEALTHCHECK` on `/healthz`.
 
 ```sh
-docker run -d -p 8080:8080 -e MEALIE_URL=http://mealie:9000 ghcr.io/nicolascochin/mealie-mcp:0.2.0
+docker run -d -p 8080:8080 -e MEALIE_URL=http://mealie:9000 ghcr.io/nicolascochin/mealie-mcp:0.3.0
 ```
 
 ## Environment variables

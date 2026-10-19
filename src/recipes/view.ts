@@ -9,14 +9,47 @@ function compact<T extends Record<string, unknown>>(value: T): Partial<T> {
 
 const names = (items: Array<{ name: string }> | null | undefined) => (items ?? []).map((item) => item.name);
 
+/**
+ * A recipe time as Mealie shows it: the duration in hours and minutes (seconds only when an import
+ * left some), then the text shown after it. Undefined when neither is set.
+ */
+export function timeView(seconds: number | null | undefined, text: string | null | undefined) {
+  const total = seconds && seconds > 0 ? Math.round(seconds) : 0;
+  const view = compact({
+    hours: Math.floor(total / 3600) || undefined,
+    minutes: Math.floor((total % 3600) / 60) || undefined,
+    seconds: total % 60 || undefined,
+    text: text?.trim(),
+  });
+  return Object.keys(view).length ? view : undefined;
+}
+
+/** The three times of a recipe, under the names the model writes them. `cookTime` is Mealie's performTime. */
+function timesView(recipe: MealieRecipeSummary) {
+  return {
+    totalTime: timeView(recipe.totalTimeSeconds, recipe.totalTime),
+    prepTime: timeView(recipe.prepTimeSeconds, recipe.prepTime),
+    cookTime: timeView(recipe.performTimeSeconds, recipe.performTime),
+    legacyCookTime: recipe.cookTime?.trim(),
+  };
+}
+
+/** Warnings about the times of a recipe: an old cooking time Mealie no longer shows. */
+export function timeWarnings(recipe: MealieRecipeSummary): string[] {
+  const legacy = recipe.cookTime?.trim();
+  return legacy
+    ? [
+        `Mealie no longer shows the old cooking time "${legacy}" (legacyCookTime): move it to cookTime (hours and minutes) and clear it with legacyCookTime: null, in one mealie_update_recipe call.`,
+      ]
+    : [];
+}
+
 /** One line of a search result: what the model needs to pick a recipe. */
 export function summaryView(recipe: MealieRecipeSummary) {
   return compact({
     slug: recipe.slug,
     name: recipe.name,
-    totalTime: recipe.totalTime,
-    prepTime: recipe.prepTime,
-    cookTime: recipe.cookTime,
+    ...timesView(recipe),
     tags: names(recipe.tags),
     categories: names(recipe.recipeCategory),
   });
@@ -67,11 +100,14 @@ export function recipeView(recipe: MealieRecipe, mine?: MealieUserRating) {
   );
 
   const freeText = ingredients.flatMap((ingredient, i) => (isFreeText(ingredient) ? [i + 1] : []));
-  const warnings = freeText.length
-    ? [
-        `Ingredients ${freeText.join(', ')} are free text with no food linked (typically after an import): quantities, units and foods are not structured.`,
-      ]
-    : [];
+  const warnings = [
+    ...(freeText.length
+      ? [
+          `Ingredients ${freeText.join(', ')} are free text with no food linked (typically after an import): quantities, units and foods are not structured.`,
+        ]
+      : []),
+    ...timeWarnings(recipe),
+  ];
 
   return compact({
     name: recipe.name,
@@ -79,10 +115,7 @@ export function recipeView(recipe: MealieRecipe, mine?: MealieUserRating) {
     description: recipe.description,
     servings: recipe.recipeServings ? recipe.recipeServings : undefined,
     yield: [recipe.recipeYieldQuantity || '', recipe.recipeYield ?? ''].join(' ').trim(),
-    totalTime: recipe.totalTime,
-    prepTime: recipe.prepTime,
-    cookTime: recipe.cookTime,
-    performTime: recipe.performTime,
+    ...timesView(recipe),
     tags: names(recipe.tags),
     categories: names(recipe.recipeCategory),
     tools: names(recipe.tools),

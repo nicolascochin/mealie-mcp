@@ -31,7 +31,7 @@ describe('recipe lifecycle against a real Mealie', () => {
     const recipe = await callJson<Raw>(client, 'mealie_create_recipe', {
       name: 'Pâte à crêpes (créée par Claude)',
       description: 'Pour 12 crêpes.',
-      totalTime: '1 h 15',
+      totalTime: { hours: 1, minutes: 15 },
       servings: 4,
       tags: ['rapide'],
       categories: ['Dessert'],
@@ -51,7 +51,7 @@ describe('recipe lifecycle against a real Mealie', () => {
     expect(recipe).toMatchObject({
       name: 'Pâte à crêpes (créée par Claude)',
       description: 'Pour 12 crêpes.',
-      totalTime: '1 h 15',
+      totalTime: { hours: 1, minutes: 15 },
       servings: 4,
       tags: ['Rapide'],
       categories: ['Dessert'],
@@ -67,6 +67,7 @@ describe('recipe lifecycle against a real Mealie', () => {
       ],
     });
     const raw = (await readRawRecipe(slug)) as Raw;
+    expect(raw.totalTimeSeconds).toBe(4500);
     expect(raw.recipeIngredient[0].display).toContain('farine');
     if (raw.settings && 'disableAmount' in raw.settings) expect(raw.settings.disableAmount).toBe(false);
   });
@@ -83,10 +84,10 @@ describe('recipe lifecycle against a real Mealie', () => {
     const result = await callJson<Raw>(client, 'mealie_update_recipe', {
       slug,
       tags: ['Végétarien', 'Rapide'],
-      prepTime: '15 min',
+      prepTime: { minutes: 15 },
       notes: [{ title: 'Repos', text: 'Laisser reposer une heure.' }],
     });
-    expect(result).toMatchObject({ prepTime: '15 min', notes: [{ title: 'Repos', text: 'Laisser reposer une heure.' }] });
+    expect(result).toMatchObject({ prepTime: { minutes: 15 }, notes: [{ title: 'Repos', text: 'Laisser reposer une heure.' }] });
     // Tags are a set: Mealie returns them in its own order.
     expect([...(result.tags as string[])].sort()).toEqual(['Rapide', 'Végétarien']);
     const after = await readRawRecipe(slug);
@@ -94,6 +95,52 @@ describe('recipe lifecycle against a real Mealie', () => {
     expect(stepsWithoutIds(after)).toEqual(stepsWithoutIds(before));
     expect(after.description).toBe(before.description);
     expect(after.recipeCategory).toEqual(before.recipeCategory);
+  });
+
+  it('sets the cooking time in the hours and minutes Mealie shows', async () => {
+    const before = await readRawRecipe(slug);
+    const result = await callJson<Raw>(client, 'mealie_update_recipe', { slug, cookTime: { hours: 1, minutes: 30 } });
+    expect(result.cookTime).toEqual({ hours: 1, minutes: 30 });
+    // Mealie's interface splits performTimeSeconds into its hours and minutes fields.
+    const after = await readRawRecipe(slug);
+    expect(after).toMatchObject({ performTimeSeconds: 5400, totalTimeSeconds: 4500, prepTimeSeconds: 900 });
+    expect(after.cookTime ?? '').toBe('');
+    expect(after.recipeIngredient).toEqual(before.recipeIngredient);
+  });
+
+  it('keeps the text shown after a duration when only the duration changes', async () => {
+    await callJson(client, 'mealie_update_recipe', { slug, cookTime: { text: 'à la poêle' } });
+    const result = await callJson<Raw>(client, 'mealie_update_recipe', { slug, cookTime: { minutes: 45 } });
+    expect(result.cookTime).toEqual({ minutes: 45, text: 'à la poêle' });
+    expect(await readRawRecipe(slug)).toMatchObject({ performTimeSeconds: 2700, performTime: 'à la poêle' });
+  });
+
+  it('clears the duration of a time, then the whole time', async () => {
+    const result = await callJson<Raw>(client, 'mealie_update_recipe', { slug, cookTime: { hours: 0, minutes: 0 } });
+    expect(result.cookTime).toEqual({ text: 'à la poêle' });
+    expect((await readRawRecipe(slug)).performTimeSeconds).toBeNull();
+
+    const cleared = await callJson<Raw>(client, 'mealie_update_recipe', { slug, cookTime: null });
+    expect(cleared).not.toHaveProperty('cookTime');
+    const raw = await readRawRecipe(slug);
+    expect(raw.performTimeSeconds).toBeNull();
+    expect(raw.performTime ?? '').toBe('');
+    expect(raw.totalTimeSeconds).toBe(4500);
+  });
+
+  it('moves the old cooking time to the one Mealie shows, and clears it', async () => {
+    await call(seed.mealieUrl, 'PATCH', `/api/recipes/${encodeURIComponent(slug)}`, seed.token, { cookTime: '20 min' });
+    const read = await callJson<Raw>(client, 'mealie_get_recipe', { slug });
+    expect(read.legacyCookTime).toBe('20 min');
+    expect(read.warnings).toEqual(expect.arrayContaining([expect.stringContaining('legacyCookTime: null')]));
+
+    const result = await callJson<Raw>(client, 'mealie_update_recipe', { slug, cookTime: { minutes: 20 }, legacyCookTime: null });
+    expect(result.cookTime).toEqual({ minutes: 20 });
+    expect(result).not.toHaveProperty('legacyCookTime');
+    expect(result).not.toHaveProperty('warnings');
+    const raw = await readRawRecipe(slug);
+    expect(raw.performTimeSeconds).toBe(1200);
+    expect(raw.cookTime ?? '').toBe('');
   });
 
   it('marks a recipe as made', async () => {
