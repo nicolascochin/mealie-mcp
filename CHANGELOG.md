@@ -3,6 +3,20 @@
 Merging a version bump of `package.json` into main publishes the release: the section below that
 matches the version becomes its release notes.
 
+## 0.3.0
+
+Tested against Mealie v3.29.0. 48 tools, as in 0.2.0.
+
+### Changed
+
+- Recipe times follow Mealie v3.29: each time (total, preparation, cooking) is read and written as a duration in hours and minutes, plus an optional text shown after it, e.g. `{ "hours": 1, "minutes": 30, "text": "plus overnight" }`, instead of free text
+- `cookTime` is now the cooking time Mealie shows (its `performTime`); the `performTime` input is gone
+- The old `cookTime` field, which Mealie no longer shows, is returned as `legacyCookTime` with a warning, and cleared with `legacyCookTime: null`
+
+```sh
+docker pull ghcr.io/nicolascochin/mealie-mcp:0.3.0
+```
+
 ## 0.2.0
 
 Tested against Mealie v3.29.0. 48 tools (30 in 0.1.0), none removed.

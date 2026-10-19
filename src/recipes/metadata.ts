@@ -5,7 +5,37 @@ import type { MealieClient } from '../mealie/client.js';
 import type { MealieOrganizer } from '../mealie/types.js';
 import { ToolError } from '../mcp/tools/result.js';
 
-const time = (what: string) => z.string().trim().max(100).nullable().optional().describe(`${what}, e.g. "45 min"; null clears it`);
+/** Mealie stores durations as a Postgres INTEGER of seconds. */
+const MAX_SECONDS = 2 ** 31 - 1;
+
+const time = (what: string) =>
+  z
+    .object({
+      hours: z.number().int().min(0).max(Math.floor(MAX_SECONDS / 3600)).optional(),
+      minutes: z.number().int().min(0).max(Math.floor(MAX_SECONDS / 60)).optional().describe('Minutes; 90 means 1 h 30'),
+      text: z
+        .string()
+        .trim()
+        .max(100)
+        .nullable()
+        .optional()
+        .describe('Shown after the duration, only for what it cannot say, e.g. "plus 1 night of marinating"; null clears it'),
+    })
+    .refine((t) => (t.hours ?? 0) * 3600 + (t.minutes ?? 0) * 60 <= MAX_SECONDS, { message: 'Duration too long' })
+    .nullable()
+    .optional()
+    .describe(
+      `${what}, as Mealie shows it: a duration in hours and minutes, then an optional text. Hours, minutes or both set the duration (0 and 0 clear it); leave both out to keep it. Leave text out to keep it. null clears the duration and the text`
+    );
+
+/** Recipe times as the model names them, with the Mealie keys of their duration and text. */
+const TIMES = {
+  totalTime: ['totalTimeSeconds', 'totalTime'],
+  prepTime: ['prepTimeSeconds', 'prepTime'],
+  // Mealie's interface shows performTime as the cooking time; its cookTime is an old field.
+  cookTime: ['performTimeSeconds', 'performTime'],
+} as const;
+
 const names = (what: string) =>
   z.array(z.string().trim().min(1).max(200)).max(30).optional().describe(`${what} by name: the complete list, replacing the current one`);
 
@@ -18,10 +48,13 @@ export const metadataFields = {
   servings: z.number().min(0).max(1000).nullable().optional().describe('Number of servings; null clears it'),
   yieldQuantity: z.number().min(0).max(100_000).nullable().optional().describe('Yield amount, e.g. 12; null clears it'),
   yield: z.string().trim().max(200).nullable().optional().describe('Yield unit or text, e.g. "crêpes"; null clears it'),
+  totalTime: time('Total time'),
   prepTime: time('Preparation time'),
   cookTime: time('Cooking time'),
-  performTime: time('Resting or other time'),
-  totalTime: time('Total time'),
+  legacyCookTime: z
+    .null()
+    .optional()
+    .describe('null clears the old cooking time that Mealie no longer shows (legacyCookTime of mealie_get_recipe); move it to cookTime first'),
   tags: names('Tags'),
   categories: names('Categories'),
   tools: names('Kitchen tools needed, e.g. "mixeur", "moule à tarte"'),
@@ -86,10 +119,15 @@ export async function metadataPatch(mealie: MealieClient, fields: MetadataFields
   set('recipeServings', fields.servings === null ? 0 : fields.servings);
   set('recipeYieldQuantity', fields.yieldQuantity === null ? 0 : fields.yieldQuantity);
   set('recipeYield', fields.yield);
-  set('prepTime', fields.prepTime);
-  set('cookTime', fields.cookTime);
-  set('performTime', fields.performTime);
-  set('totalTime', fields.totalTime);
+  for (const [field, [secondsKey, textKey]] of Object.entries(TIMES)) {
+    const value = fields[field as keyof typeof TIMES];
+    if (value === undefined) continue;
+    const { hours, minutes, text } = value ?? { hours: 0, minutes: 0, text: null };
+    // Mealie's interface treats a zero duration as none.
+    if (hours !== undefined || minutes !== undefined) set(secondsKey, (hours ?? 0) * 3600 + (minutes ?? 0) * 60 || null);
+    set(textKey, text === '' ? null : text);
+  }
+  set('cookTime', fields.legacyCookTime);
   set('orgURL', fields.source);
   set('notes', fields.notes?.map((note) => ({ title: note.title ?? '', text: note.text })));
   set('tags', tags?.map(({ id, name, slug }) => ({ id, name, slug })));

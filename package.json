@@ -1,6 +1,6 @@
 {
   "name": "mealie-mcp",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Remote MCP server to drive a self-hosted Mealie from Claude without breaking structured ingredients.",
   "private": true,
   "type": "module",

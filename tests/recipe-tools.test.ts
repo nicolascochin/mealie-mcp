@@ -74,7 +74,17 @@ describe('recipe tools', () => {
       page: 1,
       totalPages: 1,
       total: 1,
-      recipes: [{ slug: 'quiche-lorraine', name: 'Quiche lorraine', totalTime: '1 h', prepTime: '20 min', tags: ['Classique'], categories: ['Plat'] }],
+      recipes: [
+        {
+          slug: 'quiche-lorraine',
+          name: 'Quiche lorraine',
+          totalTime: { hours: 1 },
+          prepTime: { minutes: 20 },
+          cookTime: { minutes: 35, text: 'à 180 °C' },
+          tags: ['Classique'],
+          categories: ['Plat'],
+        },
+      ],
     });
     const params = lastUrl!.searchParams;
     expect(params.get('search')).toBe('quiche');

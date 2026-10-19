@@ -69,10 +69,18 @@ export interface MealieRecipeSummary {
   name: string;
   slug: string;
   description?: string | null;
+  /**
+   * Each time is a duration in seconds (Mealie v3.29+), shown as hours and minutes and followed by
+   * the free text of the same name, e.g. 3600 + "plus overnight". Mealie's cooking time is performTime.
+   */
+  totalTimeSeconds?: number | null;
   totalTime?: string | null;
+  prepTimeSeconds?: number | null;
   prepTime?: string | null;
-  cookTime?: string | null;
+  performTimeSeconds?: number | null;
   performTime?: string | null;
+  /** Old cooking time: Mealie no longer shows it, nor moved it to performTime. */
+  cookTime?: string | null;
   tags?: MealieOrganizer[] | null;
   recipeCategory?: MealieOrganizer[] | null;
   rating?: number | null;

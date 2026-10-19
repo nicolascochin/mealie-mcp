@@ -128,7 +128,7 @@ describe('recipe lifecycle tools', () => {
   it('mealie_create_recipe creates the recipe, then writes structured ingredients, linked steps and metadata', async () => {
     await callJson(client, 'mealie_create_recipe', {
       name: 'Crêpes',
-      totalTime: '30 min',
+      totalTime: { minutes: 30 },
       tags: ['rapide'],
       tools: ['poele a crepes'],
       ingredients: [
@@ -141,7 +141,8 @@ describe('recipe lifecycle tools', () => {
     expect(writes().map((c) => `${c.method} ${c.path}`)).toEqual(['POST /api/recipes', 'PATCH /api/recipes/crepes']);
     expect(writes()[0]!.body).toEqual({ name: 'Crêpes' });
     const patch = writes()[1]!.body as Record<string, any>;
-    expect(patch.totalTime).toBe('30 min');
+    expect(patch.totalTimeSeconds).toBe(1800);
+    expect(patch).not.toHaveProperty('totalTime');
     expect(patch.tags).toEqual([{ id: 't1', name: 'Rapide', slug: 'rapide' }]);
     expect(patch.tools).toEqual([{ id: 'k1', name: 'Poêle à crêpes', slug: 'poele-a-crepes' }]);
     expect(patch.settings).toEqual({ public: true, disableAmount: false });
@@ -195,7 +196,6 @@ describe('recipe lifecycle tools', () => {
       slug: 'quiche-lorraine',
       description: 'La vraie.',
       servings: 4,
-      cookTime: null,
       categories: ['dessert'],
       notes: [{ text: 'Se congèle bien.' }],
     });
@@ -206,7 +206,6 @@ describe('recipe lifecycle tools', () => {
         body: {
           description: 'La vraie.',
           recipeServings: 4,
-          cookTime: null,
           notes: [{ title: '', text: 'Se congèle bien.' }],
           recipeCategory: [{ id: 'c1', name: 'Dessert', slug: 'dessert' }],
         },
@@ -214,6 +213,76 @@ describe('recipe lifecycle tools', () => {
     ]);
     expect(result).not.toHaveProperty('ingredients');
     expect(result).toMatchObject({ description: 'La vraie.', servings: 4, categories: ['Dessert'] });
+  });
+
+  it('mealie_update_recipe writes the cooking time into the duration and text Mealie shows', async () => {
+    const result = await callJson<Record<string, unknown>>(client, 'mealie_update_recipe', {
+      slug: 'quiche-lorraine',
+      cookTime: { hours: 1, minutes: 30, text: 'à 200 °C' },
+    });
+    expect(writes().map((c) => c.body)).toEqual([{ performTimeSeconds: 5400, performTime: 'à 200 °C' }]);
+    expect(result).toMatchObject({ cookTime: { hours: 1, minutes: 30, text: 'à 200 °C' } });
+  });
+
+  it('mealie_update_recipe keeps the part of a time that is left out', async () => {
+    await callJson(client, 'mealie_update_recipe', { slug: 'quiche-lorraine', prepTime: { minutes: 90 } });
+    await callJson(client, 'mealie_update_recipe', { slug: 'quiche-lorraine', totalTime: { hours: 2 } });
+    await callJson(client, 'mealie_update_recipe', { slug: 'quiche-lorraine', cookTime: { text: 'plus 1 nuit au frais' } });
+    expect(writes().map((c) => c.body)).toEqual([
+      { prepTimeSeconds: 5400 },
+      { totalTimeSeconds: 7200 },
+      { performTime: 'plus 1 nuit au frais' },
+    ]);
+  });
+
+  it('mealie_update_recipe clears the duration, the text or both', async () => {
+    await callJson(client, 'mealie_update_recipe', { slug: 'quiche-lorraine', cookTime: { hours: 0, minutes: 0 } });
+    await callJson(client, 'mealie_update_recipe', { slug: 'quiche-lorraine', cookTime: { text: null } });
+    await callJson(client, 'mealie_update_recipe', { slug: 'quiche-lorraine', prepTime: { text: ' ' } });
+    await callJson(client, 'mealie_update_recipe', { slug: 'quiche-lorraine', totalTime: null });
+    expect(writes().map((c) => c.body)).toEqual([
+      { performTimeSeconds: null },
+      { performTime: null },
+      { prepTime: null },
+      { totalTimeSeconds: null, totalTime: null },
+    ]);
+  });
+
+  it('mealie_update_recipe clears the old cooking time, and only clears it', async () => {
+    stored = { ...stored, cookTime: '35 min', performTimeSeconds: null, performTime: null };
+    const before = await callJson<Record<string, unknown>>(client, 'mealie_update_recipe', { slug: 'quiche-lorraine', servings: 6 });
+    expect(before).toMatchObject({ legacyCookTime: '35 min', warnings: [expect.stringContaining('legacyCookTime: null')] });
+
+    const moved = await callJson<Record<string, unknown>>(client, 'mealie_update_recipe', {
+      slug: 'quiche-lorraine',
+      cookTime: { minutes: 35 },
+      legacyCookTime: null,
+    });
+    expect(writes().at(-1)!.body).toEqual({ performTimeSeconds: 2100, cookTime: null });
+    expect(moved).toMatchObject({ cookTime: { minutes: 35 } });
+    expect(moved).not.toHaveProperty('legacyCookTime');
+    expect(moved).not.toHaveProperty('warnings');
+
+    const refused = await client.callTool({ name: 'mealie_update_recipe', arguments: { slug: 'quiche-lorraine', legacyCookTime: '45 min' } });
+    expect(refused.isError).toBe(true);
+    expect(writes()).toHaveLength(2);
+  });
+
+  it('mealie_update_recipe refuses a duration Mealie cannot store', async () => {
+    const result = await client.callTool({
+      name: 'mealie_update_recipe',
+      arguments: { slug: 'quiche-lorraine', cookTime: { hours: 596_523, minutes: 60 } },
+    });
+    expect(result.isError).toBe(true);
+    expect(writes()).toEqual([]);
+  });
+
+  it('describe times by the names Mealie shows, the cooking time included', async () => {
+    const { tools } = await client.listTools();
+    const schema = tools.find((t) => t.name === 'mealie_update_recipe')!.inputSchema as { properties: Record<string, { description?: string }> };
+    expect(Object.keys(schema.properties)).toEqual(expect.arrayContaining(['totalTime', 'prepTime', 'cookTime', 'legacyCookTime']));
+    expect(schema.properties).not.toHaveProperty('performTime');
+    expect(JSON.stringify(schema)).not.toMatch(/resting/i);
   });
 
   it('mealie_update_recipe replaces the kitchen tools, and clears them with an empty list', async () => {
