@@ -109,6 +109,8 @@ export interface MealieInstruction {
   summary?: string | null;
   text?: string | null;
   ingredientReferences?: Array<{ referenceId?: string | null }> | null;
+  /** How long the step takes (Mealie v3.30+); null when not set. */
+  durationSeconds?: number | null;
 }
 
 /** A full recipe, as `GET /api/recipes/{slug}` returns it (fields this server reads). */
@@ -165,6 +167,8 @@ export interface MealieShoppingList extends MealieShoppingListSummary {
 export interface MealieMealPlanEntry {
   id: number | string;
   date: string;
+  /** Set on an entry planned for a whole week (Mealie v3.30+): `date` plus 6 days. */
+  endDate?: string | null;
   entryType: string;
   title?: string | null;
   text?: string | null;

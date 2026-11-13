@@ -6,7 +6,7 @@ import type { MealieOrganizer } from '../mealie/types.js';
 import { ToolError } from '../mcp/tools/result.js';
 
 /** Mealie stores durations as a Postgres INTEGER of seconds. */
-const MAX_SECONDS = 2 ** 31 - 1;
+export const MAX_SECONDS = 2 ** 31 - 1;
 
 const time = (what: string) =>
   z

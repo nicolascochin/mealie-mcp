@@ -136,7 +136,7 @@ describe('recipe lifecycle tools', () => {
         { quantity: 4, food: 'oeufs', section: 'Liquides' },
         { note: 'une pincée de sel' },
       ],
-      steps: [{ text: 'Mélanger.', ingredients: [1, 2, 2] }, { text: 'Cuire.' }],
+      steps: [{ text: 'Mélanger.', ingredients: [1, 2, 2] }, { text: 'Cuire.', duration: { minutes: 2 } }],
     });
     expect(writes().map((c) => `${c.method} ${c.path}`)).toEqual(['POST /api/recipes', 'PATCH /api/recipes/crepes']);
     expect(writes()[0]!.body).toEqual({ name: 'Crêpes' });
@@ -154,8 +154,9 @@ describe('recipe lifecycle tools', () => {
     const refs = patch.recipeIngredient.map((i: { referenceId: string }) => i.referenceId);
     expect(patch.recipeInstructions).toMatchObject([
       { text: 'Mélanger.', ingredientReferences: [{ referenceId: refs[0] }, { referenceId: refs[1] }] },
-      { text: 'Cuire.', ingredientReferences: [] },
+      { text: 'Cuire.', ingredientReferences: [], durationSeconds: 120 },
     ]);
+    expect(patch.recipeInstructions[0]).not.toHaveProperty('durationSeconds');
   });
 
   it('mealie_create_recipe validates everything before creating anything', async () => {

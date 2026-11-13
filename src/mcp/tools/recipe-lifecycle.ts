@@ -5,6 +5,7 @@ import { api } from '../../mealie/path.js';
 import type { MealieIngredient, MealieInstruction, MealieRecipe } from '../../mealie/types.js';
 import { ingredientFields, newIngredient, resolveCatalogRefs } from '../../recipes/ingredients.js';
 import { metadataFields, metadataPatch } from '../../recipes/metadata.js';
+import { durationSeconds, stepDuration } from '../../recipes/steps.js';
 import { recipeView, timeWarnings } from '../../recipes/view.js';
 import type { ToolDeps } from '../server.js';
 import { runTool, ToolError } from './result.js';
@@ -38,6 +39,7 @@ const stepInput = z.object({
   text: z.string().trim().min(1).max(10_000).describe('Step text'),
   title: z.string().trim().max(200).optional().describe('Section title shown above this step'),
   ingredients: z.array(z.number().int().min(1)).max(100).optional().describe('Ingredients used, by their number in the ingredients list of this call (from 1)'),
+  duration: stepDuration,
 });
 
 export function registerRecipeLifecycleTools(server: McpServer, { mealie, logger }: ToolDeps): void {
@@ -81,6 +83,7 @@ export function registerRecipeLifecycleTools(server: McpServer, { mealie, logger
           summary: '',
           text: step.text,
           ingredientReferences: [...new Set(step.ingredients ?? [])].map((n) => ({ referenceId: recipeIngredient[n - 1]!.referenceId })),
+          ...(step.duration ? { durationSeconds: durationSeconds(step.duration) } : {}),
         }));
 
         const created = await mealie.post<string>(api`/api/recipes`, { name });

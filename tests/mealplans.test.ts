@@ -1,7 +1,7 @@
 import type { Client } from '@modelcontextprotocol/client';
 import { http, HttpResponse } from 'msw';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { currentWeek, planRange } from '../src/mealplans/dates.js';
+import { currentWeek, planRange, weekOf } from '../src/mealplans/dates.js';
 import type { MealieMealPlanEntry } from '../src/mealie/types.js';
 import { callJson, connectMcp, startTestApp, toolText, type TestApp } from './helpers/app.js';
 import { mealie, mealieUrl, VALID_TOKEN } from './helpers/mealie.js';
@@ -20,6 +20,15 @@ describe('meal plan dates', () => {
     expect(planRange('2026-10-30', undefined, today)).toEqual({ start: '2026-10-30', end: '2026-11-05' });
     expect(planRange(undefined, '2026-10-03', today)).toEqual({ start: '2026-09-27', end: '2026-10-03' });
     expect(planRange('2026-10-01', '2026-10-02', today)).toEqual({ start: '2026-10-01', end: '2026-10-02' });
+  });
+
+  it("finds the week of a day from the household's first day of the week", () => {
+    // 2026-10-14 is a Wednesday.
+    expect(weekOf('2026-10-14', 1)).toEqual({ start: '2026-10-12', end: '2026-10-18' });
+    expect(weekOf('2026-10-14', 0)).toEqual({ start: '2026-10-11', end: '2026-10-17' });
+    expect(weekOf('2026-10-11', 0)).toEqual({ start: '2026-10-11', end: '2026-10-17' });
+    expect(weekOf('2026-10-11', 1)).toEqual({ start: '2026-10-05', end: '2026-10-11' });
+    expect(weekOf('2027-01-01', 6)).toEqual({ start: '2026-12-26', end: '2027-01-01' });
   });
 });
 
@@ -51,6 +60,12 @@ const record = async (request: Request) => {
 beforeEach(async () => {
   calls = [];
   mealie.use(
+    http.get(mealieUrl('/api/households/preferences'), () => HttpResponse.json({ firstDayOfWeek: 1 })),
+    http.get(mealieUrl('/api/households/mealplans/8'), () => HttpResponse.json(entry(8, '2026-10-12', 'dinner', { ...QUICHE_REF, endDate: '2026-10-18' }))),
+    http.put(mealieUrl('/api/households/mealplans/8'), async ({ request }) => {
+      await record(request);
+      return HttpResponse.json(calls.at(-1)!.body as Record<string, unknown>);
+    }),
     http.get(mealieUrl('/api/households/mealplans/today'), () => HttpResponse.json([entry(3, '2026-10-18', 'dinner', QUICHE_REF)])),
     http.get(mealieUrl('/api/households/mealplans/7'), () => HttpResponse.json(entry(7, '2026-10-15', 'lunch', QUICHE_REF))),
     http.get(mealieUrl('/api/households/mealplans/:id'), () => HttpResponse.json({ detail: 'Not found' }, { status: 404 })),
@@ -110,7 +125,25 @@ describe('meal plan tools', () => {
         { id: 2, date: '2026-10-14', meal: 'dinner', title: 'Restes' },
       ],
     });
-    expect(calls[0]!.query).toEqual({ start_date: '2026-10-12', end_date: '2026-10-18', page: '1', perPage: '-1' });
+    expect(calls[0]!.query).toEqual({ start_date: '2026-10-12', end_date: '2026-10-18', include_week_entries: 'true', page: '1', perPage: '-1' });
+  });
+
+  it('lists the meals planned for a whole week apart', async () => {
+    mealie.use(
+      http.get(mealieUrl('/api/households/mealplans'), () =>
+        HttpResponse.json({
+          page: 1,
+          total: 2,
+          items: [entry(8, '2026-10-12', 'dinner', { ...QUICHE_REF, endDate: '2026-10-18' }), entry(1, '2026-10-14', 'lunch', { title: 'Restes' })],
+        })
+      )
+    );
+    expect(await callJson(client, 'mealie_list_mealplans', { start: '2026-10-12', end: '2026-10-18' })).toEqual({
+      start: '2026-10-12',
+      end: '2026-10-18',
+      meals: [{ id: 1, date: '2026-10-14', meal: 'lunch', title: 'Restes' }],
+      weekMeals: [{ id: 8, week: { start: '2026-10-12', end: '2026-10-18' }, meal: 'dinner', recipe: { name: 'Quiche lorraine', slug: 'quiche-lorraine' } }],
+    });
   });
 
   it('refuses a range that ends before it starts', async () => {
@@ -122,6 +155,28 @@ describe('meal plan tools', () => {
     expect(await callJson(client, 'mealie_get_todays_meals')).toEqual({
       meals: [{ id: 3, date: '2026-10-18', meal: 'dinner', recipe: { name: 'Quiche lorraine', slug: 'quiche-lorraine' } }],
     });
+  });
+
+  it("adds this week's meals planned on no specific day to today's", async () => {
+    mealie.use(
+      http.get(mealieUrl('/api/households/mealplans'), async ({ request }) => {
+        await record(request);
+        return HttpResponse.json({ page: 1, total: 1, items: [entry(8, '2026-10-12', 'dinner', { title: 'Raclette', endDate: '2026-10-18' })] });
+      })
+    );
+    expect(await callJson(client, 'mealie_get_todays_meals')).toMatchObject({
+      weekMeals: [{ id: 8, week: { start: '2026-10-12', end: '2026-10-18' }, meal: 'dinner', title: 'Raclette' }],
+    });
+    expect(calls[0]!.query).toMatchObject({ include_week_entries: 'true' });
+    expect(calls[0]!.query!.start_date).toBe(calls[0]!.query!.end_date);
+  });
+
+  it("plans a recipe for the whole week, as the household counts weeks", async () => {
+    expect(await callJson(client, 'mealie_add_mealplan_entry', { date: '2026-10-14', week: true, meal: 'dinner', slug: 'quiche-lorraine' })).toMatchObject({
+      week: { start: '2026-10-12', end: '2026-10-18' },
+      recipe: { slug: 'quiche-lorraine' },
+    });
+    expect(calls[0]!.body).toEqual({ date: '2026-10-12', endDate: '2026-10-18', entryType: 'dinner', title: '', text: '', recipeId: 'r1' });
   });
 
   it('plans a recipe by slug', async () => {
@@ -150,6 +205,23 @@ describe('meal plan tools', () => {
     expect(calls).toEqual([
       { method: 'PUT', path: '/api/households/mealplans/7', body: { ...entry(7, '2026-10-16', 'dinner', QUICHE_REF) } },
     ]);
+  });
+
+  it('turns a meal planned for a day into one for its week, and back', async () => {
+    await callJson(client, 'mealie_update_mealplan_entry', { id: 7, week: true });
+    expect(calls[0]!.body).toMatchObject({ date: '2026-10-12', endDate: '2026-10-18' });
+
+    await callJson(client, 'mealie_update_mealplan_entry', { id: 8, week: false, date: '2026-10-16' });
+    expect(calls[1]!.body).toMatchObject({ date: '2026-10-16', endDate: null });
+    const noDay = await client.callTool({ name: 'mealie_update_mealplan_entry', arguments: { id: 8, week: false } });
+    expect(toolText(noDay)).toBe('Give the date of the day to plan this meal on.');
+  });
+
+  it('moves a meal planned for a week to the week of the new date', async () => {
+    await callJson(client, 'mealie_update_mealplan_entry', { id: 8, date: '2026-10-22' });
+    expect(calls[0]!.body).toMatchObject({ date: '2026-10-19', endDate: '2026-10-25' });
+    await callJson(client, 'mealie_update_mealplan_entry', { id: 8, meal: 'lunch' });
+    expect(calls[1]!.body).toMatchObject({ date: '2026-10-12', endDate: '2026-10-18', entryType: 'lunch' });
   });
 
   it('replaces a recipe by a title', async () => {
@@ -192,6 +264,19 @@ describe('random meals and meal plan rules', () => {
       recipe: { name: 'Quiche lorraine', slug: 'quiche-lorraine' },
     });
     expect(calls).toEqual([{ method: 'POST', path: '/api/households/mealplans/random', body: { date: '2026-10-20', entryType: 'dinner' } }]);
+  });
+
+  it('plans a random meal for a whole week', async () => {
+    mealie.use(
+      http.post(mealieUrl('/api/households/mealplans/random'), async ({ request }) => {
+        await record(request);
+        return HttpResponse.json(entry(12, '2026-10-12', 'dinner', { ...QUICHE_REF, endDate: '2026-10-18' }));
+      })
+    );
+    expect(await callJson(client, 'mealie_plan_random_meal', { date: '2026-10-15', week: true, meal: 'dinner' })).toMatchObject({
+      week: { start: '2026-10-12', end: '2026-10-18' },
+    });
+    expect(calls[0]!.body).toEqual({ date: '2026-10-12', endDate: '2026-10-18', entryType: 'dinner' });
   });
 
   it('explains when no recipe matches the rules', async () => {

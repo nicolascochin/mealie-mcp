@@ -128,19 +128,18 @@ describe('recipe lifecycle against a real Mealie', () => {
     expect(raw.totalTimeSeconds).toBe(4500);
   });
 
-  it('moves the old cooking time to the one Mealie shows, and clears it', async () => {
+  it("reads an older client's cooking time where Mealie v3.31 stores it, and still accepts legacyCookTime: null", async () => {
     await call(seed.mealieUrl, 'PATCH', `/api/recipes/${encodeURIComponent(slug)}`, seed.token, { cookTime: '20 min' });
     const read = await callJson<Raw>(client, 'mealie_get_recipe', { slug });
-    expect(read.legacyCookTime).toBe('20 min');
-    expect(read.warnings).toEqual(expect.arrayContaining([expect.stringContaining('legacyCookTime: null')]));
+    expect(read.cookTime).toEqual({ text: '20 min' });
+    expect(read).not.toHaveProperty('legacyCookTime');
 
-    const result = await callJson<Raw>(client, 'mealie_update_recipe', { slug, cookTime: { minutes: 20 }, legacyCookTime: null });
+    const result = await callJson<Raw>(client, 'mealie_update_recipe', { slug, cookTime: { minutes: 20, text: null }, legacyCookTime: null });
     expect(result.cookTime).toEqual({ minutes: 20 });
-    expect(result).not.toHaveProperty('legacyCookTime');
     expect(result).not.toHaveProperty('warnings');
     const raw = await readRawRecipe(slug);
     expect(raw.performTimeSeconds).toBe(1200);
-    expect(raw.cookTime ?? '').toBe('');
+    expect(raw).not.toHaveProperty('cookTime');
   });
 
   it('marks a recipe as made', async () => {

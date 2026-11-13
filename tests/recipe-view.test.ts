@@ -34,6 +34,12 @@ describe('recipeView', () => {
     });
   });
 
+  it('shows the duration of a step in hours and minutes', () => {
+    const recipe = quiche();
+    recipe.recipeInstructions![1]!.durationSeconds = 2100;
+    expect(recipeView(recipe).steps![1]).toEqual({ n: 2, title: 'Cuisson', text: 'Verser et cuire.', duration: { minutes: 35 }, ingredients: [3, 4] });
+  });
+
   it('never exposes referenceIds or other technical fields', () => {
     const text = JSON.stringify(recipeView(quiche()));
     for (const leaked of ['referenceId', '"a"', 'userId', 'groupId', 'f-farine', 'u-gramme', 'settings', 'image']) {

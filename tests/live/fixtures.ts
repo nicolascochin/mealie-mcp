@@ -94,6 +94,7 @@ export const RECIPES: RecipeFixture[] = [
     categories: ['Plat'],
     // Left as text by the migration of Mealie v3.29, which only read durations in words.
     totalTime: '45 min',
+    // Sent as an older client would: since v3.31, Mealie stores it as the cooking time it shows (performTime).
     cookTime: '30 min',
     ingredients: [
       { quantity: 4, food: 'oignon', note: 'émincés' },

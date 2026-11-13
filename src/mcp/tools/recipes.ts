@@ -19,6 +19,8 @@ const SORTS = {
   updated: ['updated_at', 'desc'],
   rating: ['rating', 'desc'],
   last_made: ['last_made', 'desc'],
+  // Recipes without a total time come last (Mealie v3.29+ durations).
+  quickest: ['total_time_seconds', 'asc'],
 } as const;
 
 const nameList = (what: string) => z.array(z.string().trim().min(1).max(200)).max(20).optional().describe(what);
@@ -76,7 +78,7 @@ export function registerRecipeTools(server: McpServer, { mealie, logger }: ToolD
         foods: nameList('Food names the recipes must contain'),
         matchAll: z.boolean().optional().describe('Require every listed tag, category, tool and food (default: any of them)'),
         favoritesOnly: z.boolean().optional().describe("Only the connected user's favorite recipes"),
-        sort: z.enum(Object.keys(SORTS) as [keyof typeof SORTS, ...Array<keyof typeof SORTS>]).optional().describe('Default: name'),
+        sort: z.enum(Object.keys(SORTS) as [keyof typeof SORTS, ...Array<keyof typeof SORTS>]).optional().describe('Default: name. quickest: shortest total time first, recipes without one last'),
         page: z.number().int().min(1).max(1000).optional().describe('Page number, from 1'),
         perPage: z.number().int().min(1).max(50).optional().describe('Results per page (default 20)'),
       }),
@@ -97,6 +99,7 @@ export function registerRecipeTools(server: McpServer, { mealie, logger }: ToolD
           perPage: input.perPage ?? 20,
           orderBy,
           orderDirection,
+          orderByNullPosition: input.sort === 'quickest' ? 'last' : undefined,
           search: input.query || undefined,
           // The filter Mealie's own favorites page uses.
           queryFilter: user ? `favoritedBy.id = "${user.id}"` : undefined,

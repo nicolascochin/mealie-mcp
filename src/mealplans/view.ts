@@ -9,10 +9,11 @@ const order = (type: string) => {
   return i === -1 ? MEAL_TYPES.length : i;
 };
 
+/** An entry: planned for a day (`date`), or for a whole week on no specific day (`week`). */
 export function entryView(entry: MealieMealPlanEntry) {
   return {
     id: entry.id,
-    date: entry.date,
+    ...(entry.endDate ? { week: { start: entry.date, end: entry.endDate } } : { date: entry.date }),
     meal: entry.entryType,
     ...(entry.recipe ? { recipe: { name: entry.recipe.name, slug: entry.recipe.slug } } : {}),
     ...(entry.title ? { title: entry.title } : {}),
@@ -23,4 +24,13 @@ export function entryView(entry: MealieMealPlanEntry) {
 /** Entries by date, then by meal of the day. */
 export function entriesView(entries: MealieMealPlanEntry[]) {
   return [...entries].sort((a, b) => a.date.localeCompare(b.date) || order(a.entryType) - order(b.entryType)).map(entryView);
+}
+
+/** Meals planned for a day, and meals planned for a whole week (Mealie v3.30+), apart. */
+export function planView(entries: MealieMealPlanEntry[]) {
+  const weekMeals = entries.filter((entry) => entry.endDate);
+  return {
+    meals: entriesView(entries.filter((entry) => !entry.endDate)),
+    ...(weekMeals.length ? { weekMeals: entriesView(weekMeals) } : {}),
+  };
 }

@@ -4,7 +4,7 @@ MCP server to drive [Mealie](https://github.com/mealie-recipes/mealie) from Clau
 
 Each person connects with their own Mealie API token, passed in the connector's `Authorization` header. The server stores nothing.
 
-Targets Mealie v3; recipe durations need v3.29 or later. Tested against **Mealie v3.29.0**: the integration tests move to each new Mealie release as soon as it passes them.
+Targets Mealie v3; recipe durations need v3.29 or later, step durations and meals planned for a week v3.30 or later. Tested against **Mealie v3.31.0**: the integration tests move to each new Mealie release as soon as it passes them.
 
 > Work in progress.
 
@@ -20,13 +20,13 @@ Targets Mealie v3; recipe durations need v3.29 or later. Tested against **Mealie
 | `mealie_create_food`, `mealie_create_unit` | Adds a food (with its label) or a unit; refuses a name already in use |
 | `mealie_update_food`, `mealie_update_unit` | Renames, changes the plural, abbreviations or label, adds or removes aliases; only touches the given fields |
 | `mealie_merge_foods`, `mealie_merge_units` | Merges a duplicate into the entry that stays: recipes and shopping lists then point to it, and the duplicate's names become aliases |
-| `mealie_search_recipes` | Searches by text, tags, categories, kitchen tools or foods (by name), or among favorites, with sorting and pagination |
-| `mealie_get_recipe` | Full recipe: times, numbered ingredients (quantity, unit, food, note, section), steps with the numbers of their ingredients, notes, the user's rating and favorite, whether it has a photo; flags free-text ingredients and the old cooking time Mealie no longer shows |
+| `mealie_search_recipes` | Searches by text, tags, categories, kitchen tools or foods (by name), or among favorites, with sorting (quickest first included) and pagination |
+| `mealie_get_recipe` | Full recipe: times, numbered ingredients (quantity, unit, food, note, section), steps with the numbers of their ingredients and their duration, notes, the user's rating and favorite, whether it has a photo; flags free-text ingredients and the old cooking time Mealie no longer shows |
 | `mealie_set_favorite`, `mealie_rate_recipe` | Adds or removes a favorite; rates a recipe from 0.5 to 5 stars (0 removes the rating), for the connected user |
 | `mealie_suggest_recipes` | "What can I make with…": recipes that use these foods, with what is missing |
 | `mealie_edit_ingredients` | Adds, changes, moves or removes ingredients in one write, never turning them into free text; structures free-text ingredients from imports |
 | `mealie_parse_ingredients` | Runs free-text ingredients through Mealie's parser and proposes quantity, unit, food and note, ready for `mealie_edit_ingredients` (writes nothing) |
-| `mealie_edit_steps` | Adds, changes, moves or removes steps in one write; links or unlinks ingredients by number, without losing existing links |
+| `mealie_edit_steps` | Adds, changes, moves or removes steps in one write; links or unlinks ingredients by number, without losing existing links; sets how long a step takes |
 | `mealie_create_recipe` | Creates a recipe with structured ingredients, linked steps and metadata |
 | `mealie_update_recipe` | Changes the description, times, servings, yield, tags, categories, kitchen tools, notes or source, without touching ingredients or steps; clears the old cooking time |
 | `mealie_import_recipe_from_url` | Has Mealie import a web page; reports the ingredients left as free text |
@@ -40,9 +40,9 @@ Targets Mealie v3; recipe durations need v3.29 or later. Tested against **Mealie
 | `mealie_add_shopping_items` | Adds items with foods and units from the catalog, which Mealie merges with existing items |
 | `mealie_update_shopping_items`, `mealie_remove_shopping_items` | Checks, unchecks, changes quantity or note; removes items |
 | `mealie_add_recipe_to_shopping_list`, `mealie_remove_recipe_from_shopping_list` | Adds or removes a recipe's ingredients, for a scale factor or a number of servings |
-| `mealie_list_mealplans`, `mealie_get_todays_meals` | Meal plans between two dates (current week by default); today's meals |
-| `mealie_add_mealplan_entry`, `mealie_update_mealplan_entry`, `mealie_delete_mealplan_entry` | Plans a recipe or a note for a date and a meal; moves, changes or removes a planned meal |
-| `mealie_plan_random_meal`, `mealie_list_mealplan_rules` | Has Mealie pick a recipe for a date and a meal, following the household's rules; lists those rules (day, meal, allowed recipes, by name) |
+| `mealie_list_mealplans`, `mealie_get_todays_meals` | Meal plans between two dates (current week by default); today's meals; meals planned for a whole week are listed apart |
+| `mealie_add_mealplan_entry`, `mealie_update_mealplan_entry`, `mealie_delete_mealplan_entry` | Plans a recipe or a note for a date and a meal, or for a whole week on no specific day; moves, changes or removes a planned meal |
+| `mealie_plan_random_meal`, `mealie_list_mealplan_rules` | Has Mealie pick a recipe for a date (or a week) and a meal, following the household's rules; lists those rules (day, meal, allowed recipes, by name) |
 
 ## Recipe times
 
@@ -54,7 +54,13 @@ Since Mealie v3.29, each recipe time (total, preparation, cooking) is a duration
 
 Leaving out both `hours` and `minutes` keeps the duration, leaving out `text` keeps the text, 0 hours and 0 minutes clear the duration, and `null` clears the whole time. `cookTime` is the cooking time Mealie shows (its `performTime`). Mealie's migration only turned times written in words ("20 minutes") into durations: abbreviations such as "15 min" or "1 h 30" stay as text until they are set again in hours and minutes.
 
-Mealie no longer shows its older `cookTime` field, and did not migrate it. When a recipe still has one, `mealie_get_recipe` returns it as `legacyCookTime` with a warning: move it to `cookTime` and clear it with `legacyCookTime: null`, in one `mealie_update_recipe` call.
+Since v3.30, a step can also have its own duration, e.g. `{ "minutes": 10 }` for "bake 10 minutes": `mealie_get_recipe` shows it, and `mealie_create_recipe` and `mealie_edit_steps` set it (`null` clears it).
+
+Mealie v3.29 and v3.30 no longer show their older `cookTime` field, and did not migrate it. When a recipe still has one, `mealie_get_recipe` returns it as `legacyCookTime` with a warning: move it to `cookTime` and clear it with `legacyCookTime: null`, in one `mealie_update_recipe` call. Mealie v3.31 moved those values to the cooking time it shows, so `legacyCookTime` no longer appears there.
+
+## Meals planned for a week
+
+Since Mealie v3.30, a meal can be planned for a whole week, on no specific day: "this week we'll have a raclette". Pass `week: true` with any date of that week to `mealie_add_mealplan_entry` or `mealie_plan_random_meal`; the week follows the household's first day of the week, as in Mealie's planner. `mealie_list_mealplans` and `mealie_get_todays_meals` return these meals apart, in `weekMeals`, with the `week` they cover. `mealie_update_mealplan_entry` moves a week meal to the week of a new date, turns a day meal into a week meal (`week: true`), or a week meal into a day meal (`week: false` with the date).
 
 ## Importing a recipe from a photo
 
