@@ -1,6 +1,6 @@
 import type { Client } from '@modelcontextprotocol/client';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { currentWeek, isoDay } from '../../src/mealplans/dates.js';
+import { addDays, currentWeek, isoDay, weekOf } from '../../src/mealplans/dates.js';
 import { callJson, connectMcp, startTestApp, type TestApp } from '../helpers/app.js';
 import { liveSeed } from './helpers.js';
 import { call } from './seed.js';
@@ -9,7 +9,8 @@ const seed = liveSeed();
 
 interface Entry {
   id: number | string;
-  date: string;
+  date?: string;
+  week?: { start: string; end: string };
   meal: string;
   recipe?: { name: string; slug: string };
   title?: string;
@@ -79,6 +80,32 @@ describe('meal plans against a real Mealie', () => {
     expect(moved).toMatchObject({ id: entry.id, date: week.end, meal: 'dessert', recipe: { name: "Soupe à l'oignon" } });
     const { meals } = await callJson<{ meals: Entry[] }>(client, 'mealie_list_mealplans', { start: week.end, end: week.end });
     expect(meals.find((m) => m.id === entry.id)).toMatchObject({ meal: 'dessert', recipe: { name: "Soupe à l'oignon" } });
+  });
+
+  it('plans a meal for the whole week, lists it apart, then moves it to a day', async () => {
+    const { firstDayOfWeek } = await call<{ firstDayOfWeek: number }>(seed.mealieUrl, 'GET', '/api/households/preferences', seed.token);
+    const day = addDays(later, 2);
+    const expected = weekOf(day, firstDayOfWeek ?? 0);
+    const entry = await add({ date: day, week: true, meal: 'dinner', slug: seed.recipes['Quiche lorraine'] });
+    expect(entry).toMatchObject({ week: expected, meal: 'dinner', recipe: { name: 'Quiche lorraine' } });
+    expect(entry).not.toHaveProperty('date');
+    const raw = await call<Record<string, unknown>>(seed.mealieUrl, 'GET', `/api/households/mealplans/${entry.id}`, seed.token);
+    expect(raw).toMatchObject({ date: expected.start, endDate: expected.end });
+
+    const listed = await callJson<{ meals: Entry[]; weekMeals?: Entry[] }>(client, 'mealie_list_mealplans', expected);
+    expect(listed.weekMeals?.find((m) => m.id === entry.id)).toMatchObject({ week: expected });
+    expect(listed.meals.find((m) => m.id === entry.id)).toBeUndefined();
+
+    const moved = await callJson<Entry>(client, 'mealie_update_mealplan_entry', { id: entry.id, week: false, date: day });
+    expect(moved).toMatchObject({ date: day, meal: 'dinner' });
+    expect(moved).not.toHaveProperty('week');
+  });
+
+  it('plans a random meal for a whole week', async () => {
+    const entry = await callJson<Entry>(client, 'mealie_plan_random_meal', { date: later, week: true, meal: 'side' });
+    created.add(entry.id);
+    expect(entry.week?.start).toBeDefined();
+    expect(entry.week!.end).toBe(addDays(entry.week!.start, 6));
   });
 
   it('replaces a recipe by a title, then deletes the entry', async () => {

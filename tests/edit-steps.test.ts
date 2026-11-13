@@ -62,6 +62,16 @@ describe('applyStepOperations', () => {
     expect(edit([{ op: 'add', after: 0, text: 'Préchauffer le four.', title: 'Préparation' }]).steps.map((s) => s.id)).toEqual(['new-1', 's1', 's2']);
   });
 
+  it('sets, keeps and clears the duration of a step', () => {
+    expect(edit([{ op: 'update', n: 2, duration: { hours: 1, minutes: 5 } }]).steps[1]!.durationSeconds).toBe(3900);
+    expect(edit([{ op: 'update', n: 2, duration: { hours: 0, minutes: 0 } }]).steps[1]!.durationSeconds).toBeNull();
+    expect(edit([{ op: 'update', n: 2, duration: null }]).steps[1]!.durationSeconds).toBeNull();
+    expect(edit([{ op: 'add', text: 'Laisser reposer.', duration: { minutes: 90 } }]).steps[2]).toMatchObject({ durationSeconds: 5400 });
+    expect(edit([{ op: 'add', text: 'Servir.' }]).steps[2]).not.toHaveProperty('durationSeconds');
+    const { recipe, steps } = edit([{ op: 'update', n: 1, text: 'Foncer le moule beurré.' }]);
+    expect(steps[0]!.durationSeconds).toBe(recipe.recipeInstructions![0]!.durationSeconds);
+  });
+
   it('moves and deletes steps against the original numbering', () => {
     expect(edit([{ op: 'move', n: 2, after: 0 }]).steps.map((s) => s.id)).toEqual(['s2', 's1']);
     expect(edit([{ op: 'delete', n: 1 }, { op: 'add', after: 1, text: 'Nouvelle étape.' }]).steps.map((s) => s.id)).toEqual(['new-1', 's2']);

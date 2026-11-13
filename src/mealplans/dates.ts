@@ -12,7 +12,7 @@ export function currentWeek(today: Date = new Date()): { start: string; end: str
   return { start: isoDay(monday), end: isoDay(sunday) };
 }
 
-const addDays = (day: string, days: number) => isoDay(new Date(Date.parse(`${day}T00:00:00Z`) + days * 86_400_000));
+export const addDays = (day: string, days: number) => isoDay(new Date(Date.parse(`${day}T00:00:00Z`) + days * 86_400_000));
 
 /**
  * The days to list: the given range, a week from `start` or up to `end` when only one is given,
@@ -23,4 +23,14 @@ export function planRange(start: string | undefined, end: string | undefined, to
   if (start) return { start, end: addDays(start, 6) };
   if (end) return { start: addDays(end, -6), end };
   return currentWeek(today);
+}
+
+/**
+ * The week containing `day`, as Mealie's meal planner stores an entry planned for a week: from the
+ * household's first day of the week (0 = Sunday, Mealie's default) to 6 days later.
+ */
+export function weekOf(day: string, firstDayOfWeek: number): { start: string; end: string } {
+  const weekday = new Date(`${day}T00:00:00Z`).getUTCDay();
+  const start = addDays(day, -((weekday - firstDayOfWeek + 7) % 7));
+  return { start, end: addDays(start, 6) };
 }

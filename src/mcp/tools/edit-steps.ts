@@ -15,7 +15,7 @@ export function registerEditSteps(server: McpServer, { mealie, logger }: ToolDep
       description: [
         'Add, update, move or delete steps of a recipe in one write, and link or unlink ingredients to a step.',
         'Step and ingredient numbers refer to the lists as mealie_get_recipe shows them, even after earlier operations in the same call: read the recipe first.',
-        'An update keeps the step links unless link, unlink or ingredients is given. A title starts a section at that step.',
+        'An update keeps the step links unless link, unlink or ingredients is given. A title starts a section at that step. A step can carry its own duration (Mealie v3.30+).',
       ].join(' '),
       inputSchema: z.object({
         slug: z.string().trim().min(1).max(200).describe('Recipe slug'),

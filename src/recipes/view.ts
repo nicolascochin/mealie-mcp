@@ -93,6 +93,7 @@ export function recipeView(recipe: MealieRecipe, mine?: MealieUserRating) {
       title: step.title,
       summary: step.summary,
       text: step.text,
+      duration: timeView(step.durationSeconds, undefined),
       ingredients: (step.ingredientReferences ?? [])
         .map((ref) => (ref.referenceId ? numberOf.get(ref.referenceId) : undefined))
         .filter((n): n is number => n !== undefined),

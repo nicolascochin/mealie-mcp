@@ -32,8 +32,21 @@ describe('mealie_search_recipes against a real Mealie', () => {
       totalTime: { minutes: 30, text: 'plus 1 h de repos' },
       tags: ['Rapide', 'Végétarien'],
     });
-    // A time still in text, and the old cooking time Mealie no longer shows.
-    expect(result.recipes.find((r) => r.name === "Soupe à l'oignon")).toMatchObject({ totalTime: { text: '45 min' }, legacyCookTime: '30 min' });
+    // A time still in text, and the old cooking time, which Mealie v3.31 moved to the one it shows.
+    const soup = result.recipes.find((r) => r.name === "Soupe à l'oignon");
+    expect(soup).toMatchObject({ totalTime: { text: '45 min' }, cookTime: { text: '30 min' } });
+    expect(soup).not.toHaveProperty('legacyCookTime');
+  });
+
+  it('sorts the quickest recipes first, those without a total time last', async () => {
+    const result = await callJson<SearchResult>(client, 'mealie_search_recipes', { sort: 'quickest' });
+    const hasDuration = (r: SearchResult['recipes'][number]) => {
+      const time = r.totalTime as { hours?: number; minutes?: number } | undefined;
+      return Boolean(time?.hours || time?.minutes);
+    };
+    const timed = result.recipes.filter(hasDuration);
+    expect(timed.map((r) => r.name).slice(0, 2)).toEqual(['Crêpes', 'Quiche lorraine']);
+    expect(result.recipes.slice(0, timed.length)).toEqual(timed);
   });
 
   it('searches text', async () => {
@@ -93,11 +106,11 @@ describe('mealie_get_recipe against a real Mealie', () => {
     expect(JSON.stringify(recipe)).not.toContain('referenceId');
   });
 
-  it('shows the old cooking time apart, and says how to move it', async () => {
+  it('shows an old cooking time as the cooking time, where Mealie v3.31 moved it', async () => {
     const recipe = await callJson<Record<string, unknown>>(client, 'mealie_get_recipe', { slug: seed.recipes["Soupe à l'oignon"] });
-    expect(recipe).not.toHaveProperty('cookTime');
-    expect(recipe).toMatchObject({ totalTime: { text: '45 min' }, legacyCookTime: '30 min' });
-    expect(recipe.warnings).toEqual([expect.stringContaining('Mealie no longer shows the old cooking time "30 min"')]);
+    expect(recipe).toMatchObject({ totalTime: { text: '45 min' }, cookTime: { text: '30 min' } });
+    expect(recipe).not.toHaveProperty('legacyCookTime');
+    expect(JSON.stringify(recipe.warnings ?? [])).not.toContain('old cooking time');
   });
 
   it('includes the line as Mealie displays it', async () => {

@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import * as z from 'zod';
 import type { MealieIngredient, MealieInstruction } from '../mealie/types.js';
 import { ListEdit } from './list-edit.js';
+import { MAX_SECONDS } from './metadata.js';
 
 const stepNumber = z.number().int().min(1).describe('Step number, as mealie_get_recipe shows it');
 const after = z.number().int().min(0).describe('Put it after this step number, as mealie_get_recipe shows it; 0 = at the start');
@@ -10,9 +11,34 @@ const ingredientNumbers = (what: string) =>
 const text = z.string().trim().min(1).max(10_000);
 const title = z.string().trim().max(200).nullable().optional().describe('Section title shown above this step; null clears it');
 
+/** How long a step takes, as Mealie v3.30+ stores it (seconds) and the model writes it. */
+export const stepDuration = z
+  .object({
+    hours: z.number().int().min(0).max(Math.floor(MAX_SECONDS / 3600)).optional(),
+    minutes: z.number().int().min(0).max(Math.floor(MAX_SECONDS / 60)).optional().describe('Minutes; 90 means 1 h 30'),
+  })
+  .refine((d) => d.hours !== undefined || d.minutes !== undefined, { message: 'Give hours, minutes or both' })
+  .refine((d) => (d.hours ?? 0) * 3600 + (d.minutes ?? 0) * 60 <= MAX_SECONDS, { message: 'Duration too long' })
+  .nullable()
+  .optional()
+  .describe('How long this step takes, e.g. { "minutes": 10 } for "bake 10 minutes"; only for a step with a real wait or cooking time. 0 and 0, or null, clear it');
+
+/** Seconds to send to Mealie: null clears the duration (Mealie treats 0 as none). */
+export function durationSeconds(duration: { hours?: number; minutes?: number } | null): number | null {
+  if (!duration) return null;
+  return (duration.hours ?? 0) * 3600 + (duration.minutes ?? 0) * 60 || null;
+}
+
 export const stepOperation = z.discriminatedUnion('op', [
   z
-    .object({ op: z.literal('add'), after: after.optional(), text: text.describe('Step text'), title, ingredients: ingredientNumbers('Ingredients used') })
+    .object({
+      op: z.literal('add'),
+      after: after.optional(),
+      text: text.describe('Step text'),
+      title,
+      ingredients: ingredientNumbers('Ingredients used'),
+      duration: stepDuration,
+    })
     .describe('Add a step (at the end by default)'),
   z
     .object({
@@ -23,6 +49,7 @@ export const stepOperation = z.discriminatedUnion('op', [
       link: ingredientNumbers('Ingredients to link, kept after the existing links'),
       unlink: ingredientNumbers('Ingredients to unlink'),
       ingredients: ingredientNumbers('Replace all links with exactly these ingredients ([] removes them all)'),
+      duration: stepDuration,
     })
     .describe('Change a step; its links are kept unless link, unlink or ingredients is given'),
   z.object({ op: z.literal('move'), n: stepNumber, after }).describe('Move a step'),
@@ -67,11 +94,12 @@ export function applyStepOperations(
           summary: '',
           text: op.text,
           ingredientReferences: references(label, dedupe(op.ingredients ?? [])),
+          ...(op.duration ? { durationSeconds: durationSeconds(op.duration) } : {}),
         });
         break;
       case 'update': {
-        const { op: _op, n, text: newText, title: newTitle, link, unlink, ingredients: replace } = op;
-        if ([newText, newTitle, link, unlink, replace].every((value) => value === undefined)) {
+        const { op: _op, n, text: newText, title: newTitle, link, unlink, ingredients: replace, duration } = op;
+        if ([newText, newTitle, link, unlink, replace, duration].every((value) => value === undefined)) {
           edit.problems.push(`${label}: nothing to change.`);
           edit.check(n, label);
           break;
@@ -86,6 +114,7 @@ export function applyStepOperations(
           const next: MealieInstruction = { ...step };
           if (newText !== undefined) next.text = newText;
           if (newTitle !== undefined) next.title = newTitle || '';
+          if (duration !== undefined) next.durationSeconds = durationSeconds(duration);
           if (replacement) next.ingredientReferences = replacement;
           else if (toLink.length || toUnlink.length) {
             const current = step.ingredientReferences ?? [];

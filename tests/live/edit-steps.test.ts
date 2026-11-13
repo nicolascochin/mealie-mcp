@@ -63,6 +63,18 @@ describe('mealie_edit_steps against a real Mealie', () => {
     expect(after.map(withoutId)[2]).toEqual(withoutId(before[2]!));
   });
 
+  it('sets the duration of a step, keeps it on other changes, and clears it', async () => {
+    const result = await edit([{ op: 'update', n: 3, duration: { hours: 1, minutes: 5 } }]);
+    expect(result.steps[2]).toMatchObject({ n: 3, duration: { hours: 1, minutes: 5 } });
+    expect((await stepsOf())[2]).toMatchObject({ durationSeconds: 3900 });
+
+    await edit([{ op: 'update', n: 3, text: 'Ajouter les œufs et cuire au four.' }]);
+    expect((await stepsOf())[2]).toMatchObject({ durationSeconds: 3900, text: 'Ajouter les œufs et cuire au four.' });
+
+    await edit([{ op: 'update', n: 3, duration: null }]);
+    expect((await stepsOf())[2]!.durationSeconds).toBeNull();
+  });
+
   it('links an ingredient so that Mealie stores it', async () => {
     const result = await edit([{ op: 'update', n: 1, link: [2] }]);
     expect(result.steps[0]).toMatchObject({ n: 1, ingredients: [1, 2] });

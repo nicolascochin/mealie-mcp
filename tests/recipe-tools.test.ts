@@ -106,6 +106,14 @@ describe('recipe tools', () => {
     expect(Object.fromEntries(params)).toEqual({ page: '1', perPage: '20', orderBy: 'name', orderDirection: 'asc' });
   });
 
+  it('mealie_search_recipes sorts the quickest first, recipes without a total time last', async () => {
+    await callJson(client, 'mealie_search_recipes', { sort: 'quickest' });
+    const params = lastUrl!.searchParams;
+    expect(params.get('orderBy')).toBe('total_time_seconds');
+    expect(params.get('orderDirection')).toBe('asc');
+    expect(params.get('orderByNullPosition')).toBe('last');
+  });
+
   it('mealie_search_recipes explains an unknown tag with close matches', async () => {
     const result = await client.callTool({ name: 'mealie_search_recipes', arguments: { tags: ['clasique'] } });
     expect(result.isError).toBe(true);

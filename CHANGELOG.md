@@ -3,6 +3,24 @@
 Merging a version bump of `package.json` into main publishes the release: the section below that
 matches the version becomes its release notes.
 
+## 0.4.0
+
+Tested against Mealie v3.31.0. 48 tools, as in 0.3.0.
+
+### New
+
+- Step durations (Mealie v3.30): `mealie_get_recipe` shows how long each step takes, and `mealie_create_recipe` and `mealie_edit_steps` set or clear it, e.g. `{ "minutes": 10 }`
+- Meals planned for a whole week (Mealie v3.30): `week: true` on `mealie_add_mealplan_entry`, `mealie_plan_random_meal` and `mealie_update_mealplan_entry`; `mealie_list_mealplans` and `mealie_get_todays_meals` list them apart, in `weekMeals`
+- `mealie_search_recipes` sorts the quickest recipes first (`sort: "quickest"`), those without a total time last
+
+### Changed
+
+- Mealie v3.31 no longer returns the old `cookTime` and moved its values to the cooking time it shows: `legacyCookTime` only appears with Mealie v3.29 and v3.30, and `legacyCookTime: null` stays harmless
+
+```sh
+docker pull ghcr.io/nicolascochin/mealie-mcp:0.4.0
+```
+
 ## 0.3.0
 
 Tested against Mealie v3.29.0. 48 tools, as in 0.2.0.
