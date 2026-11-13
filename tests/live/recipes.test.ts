@@ -28,10 +28,10 @@ describe('mealie_search_recipes against a real Mealie', () => {
   it('lists every recipe sorted by name, with times and tags', async () => {
     const result = await callJson<SearchResult>(client, 'mealie_search_recipes', {});
     expect(names(result)).toEqual(RECIPES.map((r) => r.name).sort((a, b) => a.localeCompare(b)));
-    expect(result.recipes.find((r) => r.name === 'Crêpes')).toMatchObject({
-      totalTime: { minutes: 30, text: 'plus 1 h de repos' },
-      tags: ['Rapide', 'Végétarien'],
-    });
+    const crepes = result.recipes.find((r) => r.name === 'Crêpes');
+    expect(crepes).toMatchObject({ totalTime: { minutes: 30, text: 'plus 1 h de repos' } });
+    // Tags come back in Mealie's order, which changed in v3.31.
+    expect([...(crepes?.tags ?? [])].sort()).toEqual(['Rapide', 'Végétarien']);
     // A time still in text, and the old cooking time, which Mealie v3.31 moved to the one it shows.
     const soup = result.recipes.find((r) => r.name === "Soupe à l'oignon");
     expect(soup).toMatchObject({ totalTime: { text: '45 min' }, cookTime: { text: '30 min' } });
